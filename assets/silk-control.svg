@@ -1,0 +1,8 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#0E2028"/>
+  <rect y="620" width="1600" height="280" fill="#223E49"/>
+  <rect x="250" y="228" width="1100" height="262" rx="26" fill="#365A68"/>
+  <rect x="514" y="270" width="574" height="110" rx="16" fill="#9CD8DB" fill-opacity="0.3"/>
+  <circle cx="800" cy="136" r="114" fill="#B2FFFF" fill-opacity="0.12"/>
+  <text x="96" y="812" fill="#EFFCFD" font-family="Arial" font-size="56" font-weight="700">Silk Tech Control 360 Placeholder</text>
+</svg>

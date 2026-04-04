@@ -1,0 +1,11 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#321F12"/>
+  <rect y="530" width="1600" height="370" fill="#62442D"/>
+  <circle cx="224" cy="138" r="114" fill="#D59B5B" fill-opacity="0.25"/>
+  <circle cx="1363" cy="113" r="124" fill="#FFE0B8" fill-opacity="0.18"/>
+  <rect x="124" y="165" width="240" height="316" rx="22" fill="#7E5430"/>
+  <rect x="452" y="152" width="712" height="352" rx="26" fill="#8A5A32"/>
+  <rect x="1200" y="165" width="250" height="316" rx="22" fill="#7A5130"/>
+  <rect x="628" y="262" width="360" height="218" rx="16" fill="#D8B084" fill-opacity="0.4"/>
+  <text x="96" y="812" fill="#FFF4E8" font-family="Arial" font-size="56" font-weight="700">Registan Lobby 360 Placeholder</text>
+</svg>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tudors Booking 360</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <nav class="topbar">
+          <div class="brand">
+            <span class="brand-badge">TB</span>
+            <div>
+              <p>Tudors Booking 360</p>
+              <span>Бронирование площадок с виртуальным туром</span>
+            </div>
+          </div>
+          <a class="ghost-link" href="#booking">Оставить заявку</a>
+        </nav>
+
+        <div class="hero-grid">
+          <section class="hero-copy">
+            <p class="eyebrow">MVP для онлайн-просмотра площадок</p>
+            <h1>Выбирай зал, гуляй по нему онлайн и бронируй без звонков.</h1>
+            <p class="hero-text">
+              Этот стартовый проект показывает, как может выглядеть сервис в
+              стиле Uzbekistan 360: каталог локаций, виртуальный тур с точками
+              перехода и форма мгновенного бронирования.
+            </p>
+            <div class="hero-actions">
+              <a class="primary-button" href="#tour">Открыть 360 тур</a>
+              <a class="secondary-button" href="#guide">Изучить инструкцию</a>
+            </div>
+            <ul class="hero-metrics">
+              <li>
+                <strong>360</strong>
+                <span>Просмотр залов</span>
+              </li>
+              <li>
+                <strong>3 шага</strong>
+                <span>До заявки</span>
+              </li>
+              <li>
+                <strong>MVP</strong>
+                <span>Готов к развитию</span>
+              </li>
+            </ul>
+          </section>
+
+          <aside class="hero-card">
+            <p class="card-label">Пользовательский сценарий</p>
+            <ol>
+              <li>Открывает каталог и фильтрует площадки.</li>
+              <li>Заходит в 360-тур и переключает обзор между точками.</li>
+              <li>Смотрит вместимость, цену, услуги и оставляет заявку.</li>
+            </ol>
+          </aside>
+        </div>
+      </header>
+
+      <main>
+        <section class="section" id="catalog">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Каталог площадок</p>
+              <h2>Выбери объект для просмотра</h2>
+            </div>
+            <label class="filter">
+              <span>Формат</span>
+              <select id="venueFilter">
+                <option value="all">Все площадки</option>
+              </select>
+            </label>
+          </div>
+          <div id="venueGrid" class="venue-grid"></div>
+        </section>
+
+        <section class="section tour-section" id="tour">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">360 тур</p>
+              <h2 id="tourTitle">Загрузка виртуального тура</h2>
+            </div>
+            <div class="tour-stats">
+              <div>
+                <span>Точка</span>
+                <strong id="sceneCounter">0 / 0</strong>
+              </div>
+              <div>
+                <span>Режим</span>
+                <strong>Онлайн просмотр</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="tour-layout">
+            <div class="tour-viewer-card">
+              <div class="viewer-toolbar">
+                <button id="prevSceneButton" class="toolbar-button" type="button">
+                  Назад
+                </button>
+                <div class="toolbar-note">
+                  Зажми мышь и води влево/вправо, чтобы осмотреть панораму
+                </div>
+                <button id="nextSceneButton" class="toolbar-button" type="button">
+                  Вперед
+                </button>
+              </div>
+
+              <div id="panoramaFrame" class="panorama-frame">
+                <div id="panoramaTrack" class="panorama-track"></div>
+                <div class="viewer-overlay">
+                  <div class="viewer-chip">360 DEMO</div>
+                  <p id="sceneLabel"></p>
+                </div>
+                <div id="hotspotLayer" class="hotspot-layer"></div>
+              </div>
+            </div>
+
+            <aside class="tour-sidebar">
+              <article class="sidebar-card">
+                <p class="card-label">О площадке</p>
+                <h3 id="venueName"></h3>
+                <p id="venueSummary"></p>
+                <div class="facts" id="venueFacts"></div>
+              </article>
+
+              <article class="sidebar-card">
+                <p class="card-label">Маршрут тура</p>
+                <div id="sceneList" class="scene-list"></div>
+              </article>
+            </aside>
+          </div>
+        </section>
+
+        <section class="section booking-section" id="booking">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Быстрое бронирование</p>
+              <h2>Отправить заявку менеджеру</h2>
+            </div>
+          </div>
+
+          <div class="booking-layout">
+            <form id="bookingForm" class="booking-form">
+              <label>
+                Имя
+                <input name="name" type="text" placeholder="Ваше имя" required />
+              </label>
+              <label>
+                Телефон
+                <input
+                  name="phone"
+                  type="tel"
+                  placeholder="+998 90 123 45 67"
+                  required
+                />
+              </label>
+              <label>
+                Дата мероприятия
+                <input name="date" type="date" required />
+              </label>
+              <label>
+                Количество гостей
+                <input name="guests" type="number" min="1" max="5000" required />
+              </label>
+              <label>
+                Площадка
+                <select id="bookingVenue" name="venue" required></select>
+              </label>
+              <label>
+                Комментарий
+                <textarea
+                  name="comment"
+                  rows="4"
+                  placeholder="Свадьба, конференция, фотосессия, корпоратив..."
+                ></textarea>
+              </label>
+              <button class="primary-button wide-button" type="submit">
+                Отправить заявку
+              </button>
+            </form>
+
+            <div class="booking-preview">
+              <p class="card-label">Что должно быть в боевой версии</p>
+              <ul>
+                <li>Календарь занятости по слотам и часовым поясам.</li>
+                <li>Онлайн-оплата и предоплата через платежный шлюз.</li>
+                <li>CRM-панель для менеджеров и владельцев площадок.</li>
+                <li>Загрузка новых 360-туров из админки без разработчика.</li>
+              </ul>
+              <div id="formResult" class="form-result">
+                После отправки здесь появится локальное подтверждение заявки.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section guide-section" id="guide">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Практическая инструкция</p>
+              <h2>Как это развивать и как снимать реальные объекты</h2>
+            </div>
+          </div>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>1. Архитектура</h3>
+              <p>
+                Начни с этого демо как фронтенд-концепта, затем перенеси на
+                `Next.js + PostgreSQL + object storage + CDN + panorama viewer`.
+              </p>
+            </article>
+            <article class="guide-card">
+              <h3>2. Контент</h3>
+              <p>
+                Для каждого зала нужен маршрут съемки, названия точек, план
+                переходов, цены, вместимость и услуги.
+              </p>
+            </article>
+            <article class="guide-card">
+              <h3>3. Масштабирование</h3>
+              <p>
+                Храни тяжелые 360-файлы отдельно, кешируй через CDN и отделяй
+                поиск/каталог от сервиса бронирований.
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

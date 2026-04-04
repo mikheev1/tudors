@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VenueStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum BookingStatus {
+  NEW
+  HOLD_PENDING
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  WAITLIST
+}
+
+model Company {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logoText     String?
+  logoImageUrl String?
+  accent       String?
+  accentDark   String?
+  surfaceTint  String?
+  panelSurface String?
+  dashboardBackgroundUrl String?
+  telegramBotName String?
+  telegramAdminChatId String?
+  managerReminderLeadMinutes Int? @default(60)
+  customerReminderLeadMinutes Int? @default(30)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  venues       Venue[]
+  managers     Manager[]
+}
+
+model Manager {
+  id          String   @id @default(cuid())
+  companyId   String
+  fullName    String
+  email       String   @unique
+  phone       String?
+  role        String   @default("manager")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bookings    BookingRequest[]
+  ownedVenues Venue[]  @relation("OwnedVenues")
+
+  @@index([companyId])
+}
+
+model Venue {
+  id             String          @id @default(cuid())
+  companyId      String?
+  ownerManagerId String?
+  slug           String          @unique
+  name           String
+  vertical       String          @default("event-space")
+  city           String
+  address        String?
+  description    String
+  basePrice      Decimal?        @db.Decimal(10, 2)
+  currency       String          @default("USD")
+  capacityMin    Int?
+  capacityMax    Int?
+  status         VenueStatus     @default(DRAFT)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  company        Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  ownerManager   Manager?        @relation("OwnedVenues", fields: [ownerManagerId], references: [id], onDelete: SetNull)
+  spaces         VenueSpace[]
+  tours          PanoramaTour[]
+  bookingRequest BookingRequest[]
+
+  @@index([companyId])
+  @@index([ownerManagerId])
+}
+
+model VenueSpace {
+  id           String           @id @default(cuid())
+  venueId      String
+  name         String
+  spaceType    String
+  areaM2       Int?
+  capacity     Int?
+  pricingModel String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  venue        Venue            @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  bookings     BookingRequest[]
+
+  @@index([venueId])
+}
+
+model PanoramaTour {
+  id           String          @id @default(cuid())
+  venueId       String
+  version       Int             @default(1)
+  status        String          @default("draft")
+  coverSceneId  String?
+  floorPlanUrl  String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  venue         Venue           @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  scenes        PanoramaScene[]
+
+  @@index([venueId, status])
+}
+
+model PanoramaScene {
+  id              String         @id @default(cuid())
+  tourId          String
+  name            String
+  sourceImageUrl  String
+  tilesManifestUrl String?
+  yawDefault      Float?
+  pitchDefault    Float?
+  hfovDefault     Float?
+  sortOrder       Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  tour            PanoramaTour   @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  hotspots        SceneHotspot[] @relation("SourceSceneHotspots")
+  targetHotspots  SceneHotspot[] @relation("TargetSceneHotspots")
+
+  @@index([tourId, sortOrder])
+}
+
+model SceneHotspot {
+  id             String         @id @default(cuid())
+  sceneId        String
+  targetSceneId  String?
+  yaw            Float?
+  pitch          Float?
+  label          String
+  kind           String         @default("jump")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  scene          PanoramaScene  @relation("SourceSceneHotspots", fields: [sceneId], references: [id], onDelete: Cascade)
+  targetScene    PanoramaScene? @relation("TargetSceneHotspots", fields: [targetSceneId], references: [id], onDelete: SetNull)
+
+  @@index([sceneId])
+  @@index([targetSceneId])
+}
+
+model BookingRequest {
+  id            String        @id @default(cuid())
+  venueId        String?
+  spaceId        String?
+  managerId      String?
+  eventType      String?
+  guestCount     Int
+  eventDate      DateTime
+  startTime      String?
+  endTime        String?
+  customerName   String
+  customerPhone  String
+  customerEmail  String?
+  comment        String?
+  sourceLabel    String?
+  holdExpiresAt  DateTime?
+  confirmedAt    DateTime?
+  managerNote    String?
+  status         BookingStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  manager        Manager?      @relation(fields: [managerId], references: [id], onDelete: SetNull)
+  venue          Venue?        @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  space          VenueSpace?   @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  notifications  NotificationJob[]
+
+  @@index([venueId, eventDate])
+  @@index([status, createdAt])
+  @@index([managerId])
+}
+
+model WaitlistEntry {
+  id              String   @id @default(cuid())
+  venueId          String
+  companyId        String?
+  managerId        String?
+  sceneId          String?
+  sceneTitle       String?
+  hotspotId        String?
+  hotspotLabel     String?
+  customerName     String
+  customerPhone    String
+  customerTelegram String?
+  requestedDate    DateTime?
+  requestedTime    String?
+  status           String   @default("ACTIVE")
+  note             String?
+  contactedAt      DateTime?
+  resolvedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([venueId, createdAt])
+  @@index([managerId, createdAt])
+  @@index([status, createdAt])
+}
+
+model NotificationJob {
+  id              String   @id @default(cuid())
+  bookingRequestId String?
+  companyId       String?
+  venueId         String?
+  kind            String
+  channel         String
+  recipient       String
+  recipientLabel  String?
+  message         String
+  scheduledAt     DateTime
+  sentAt          DateTime?
+  failedAt        DateTime?
+  status          String   @default("PENDING")
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  bookingRequest  BookingRequest? @relation(fields: [bookingRequestId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@index([bookingRequestId])
+  @@index([companyId, scheduledAt])
+}

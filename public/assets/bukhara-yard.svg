@@ -1,0 +1,9 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#4C301D"/>
+  <rect y="590" width="1600" height="310" fill="#8A613E"/>
+  <rect x="140" y="152" width="252" height="342" rx="24" fill="#6E472A"/>
+  <rect x="462" y="184" width="676" height="320" rx="28" fill="#8F6038"/>
+  <rect x="1208" y="152" width="252" height="342" rx="24" fill="#6E472A"/>
+  <circle cx="788" cy="118" r="126" fill="#FFD2A3" fill-opacity="0.18"/>
+  <text x="96" y="812" fill="#FFF4E8" font-family="Arial" font-size="56" font-weight="700">Bukhara Courtyard 360 Placeholder</text>
+</svg>

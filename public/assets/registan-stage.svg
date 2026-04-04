@@ -1,0 +1,9 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#21140E"/>
+  <rect y="610" width="1600" height="290" fill="#43291A"/>
+  <rect x="232" y="164" width="1136" height="364" rx="28" fill="#6F4428"/>
+  <rect x="422" y="214" width="758" height="224" rx="18" fill="#DAB48A" fill-opacity="0.3"/>
+  <rect x="582" y="194" width="438" height="152" rx="12" fill="#F8D7B3" fill-opacity="0.4"/>
+  <circle cx="800" cy="114" r="126" fill="#FFA85D" fill-opacity="0.24"/>
+  <text x="96" y="812" fill="#FFF4E8" font-family="Arial" font-size="56" font-weight="700">Registan Stage 360 Placeholder</text>
+</svg>

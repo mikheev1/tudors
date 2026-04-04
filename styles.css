@@ -1,0 +1,534 @@
+:root {
+  --bg: #f3efe5;
+  --surface: rgba(255, 248, 235, 0.82);
+  --surface-strong: #fffaf0;
+  --panel: rgba(49, 34, 19, 0.88);
+  --line: rgba(96, 71, 44, 0.16);
+  --text: #2d2115;
+  --muted: #71583f;
+  --accent: #b55b35;
+  --accent-dark: #7e381d;
+  --success: #1d6a52;
+  --shadow: 0 24px 70px rgba(70, 42, 13, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "Manrope", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(255, 206, 145, 0.58), transparent 28%),
+    radial-gradient(circle at right center, rgba(187, 111, 73, 0.18), transparent 32%),
+    linear-gradient(180deg, #f7f0e4 0%, #efe8dd 45%, #eee6da 100%);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.page-shell {
+  width: min(1280px, calc(100% - 32px));
+  margin: 24px auto 64px;
+}
+
+.hero,
+.section {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  border-radius: 32px;
+  box-shadow: var(--shadow);
+}
+
+.hero {
+  padding: 28px;
+}
+
+.topbar,
+.section-heading,
+.hero-grid,
+.tour-layout,
+.booking-layout,
+.guide-grid,
+.hero-actions,
+.hero-metrics,
+.facts,
+.viewer-toolbar {
+  display: grid;
+  gap: 16px;
+}
+
+.topbar {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.brand-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  color: #fff9f5;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+}
+
+.brand p,
+.brand span,
+.hero-card p,
+.hero-card ol,
+.guide-card p,
+.sidebar-card p,
+.sidebar-card h3,
+.toolbar-note,
+.form-result,
+.booking-preview ul {
+  margin: 0;
+}
+
+.brand p {
+  font-weight: 800;
+}
+
+.brand span,
+.toolbar-note,
+.hero-text,
+.card-label,
+.guide-card p,
+.sidebar-card p,
+.filter span,
+.facts span,
+.scene-meta,
+.booking-preview li,
+.form-result {
+  color: var(--muted);
+}
+
+.ghost-link,
+.secondary-button,
+.toolbar-button,
+.scene-item {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.ghost-link,
+.primary-button,
+.secondary-button,
+.toolbar-button {
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 700;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.primary-button,
+.wide-button {
+  background: linear-gradient(135deg, var(--accent), #d48f58);
+  color: white;
+  border: none;
+}
+
+.secondary-button,
+.ghost-link,
+.toolbar-button {
+  color: var(--text);
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.ghost-link:hover,
+.toolbar-button:hover,
+.scene-item:hover,
+.venue-card:hover {
+  transform: translateY(-2px);
+}
+
+.hero-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  align-items: start;
+}
+
+.eyebrow,
+.card-label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.hero-copy h1,
+.section-heading h2,
+.sidebar-card h3 {
+  font-family: "Space Grotesk", sans-serif;
+  line-height: 1;
+  margin: 0;
+}
+
+.hero-copy h1 {
+  font-size: clamp(2.8rem, 7vw, 5rem);
+  max-width: 10ch;
+  margin: 8px 0 16px;
+}
+
+.hero-text {
+  max-width: 62ch;
+  font-size: 1.05rem;
+}
+
+.hero-actions {
+  grid-auto-flow: column;
+  justify-content: start;
+  margin: 28px 0;
+}
+
+.hero-metrics {
+  grid-template-columns: repeat(3, minmax(0, 180px));
+  padding: 0;
+  list-style: none;
+}
+
+.hero-metrics li,
+.hero-card,
+.sidebar-card,
+.booking-preview,
+.guide-card,
+.venue-card,
+.tour-viewer-card {
+  border-radius: 26px;
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+}
+
+.hero-metrics li {
+  padding: 18px;
+}
+
+.hero-metrics strong {
+  display: block;
+  font-size: 1.8rem;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.hero-card {
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(46, 28, 13, 0.95), rgba(90, 46, 24, 0.94)),
+    #3f2815;
+  color: #fdf2e5;
+}
+
+.hero-card .card-label {
+  color: rgba(255, 241, 226, 0.72);
+}
+
+.hero-card ol {
+  margin-top: 14px;
+  padding-left: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.section {
+  margin-top: 22px;
+  padding: 28px;
+}
+
+.section-heading {
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.filter {
+  min-width: 220px;
+}
+
+.filter,
+.booking-form label {
+  display: grid;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.filter select,
+.booking-form input,
+.booking-form select,
+.booking-form textarea {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 14px 16px;
+  color: var(--text);
+}
+
+.venue-grid,
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.venue-card {
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.venue-card.active {
+  outline: 2px solid rgba(181, 91, 53, 0.5);
+  transform: translateY(-2px);
+}
+
+.venue-preview {
+  height: 190px;
+  background-size: cover;
+  background-position: center;
+}
+
+.venue-content {
+  padding: 18px;
+}
+
+.venue-meta,
+.facts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pill,
+.fact {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(181, 91, 53, 0.09);
+  font-size: 0.92rem;
+}
+
+.tour-layout,
+.booking-layout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  align-items: start;
+}
+
+.tour-viewer-card,
+.sidebar-card,
+.booking-preview,
+.guide-card,
+.booking-form {
+  padding: 18px;
+}
+
+.viewer-toolbar {
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.panorama-frame {
+  position: relative;
+  min-height: 520px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #2d2115;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.panorama-track {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-repeat: repeat-x;
+  background-position: center;
+  transform: scale(1.12);
+  transition: background-image 0.25s ease;
+}
+
+.panorama-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(14, 10, 7, 0.08), rgba(14, 10, 7, 0.38)),
+    radial-gradient(circle at center, transparent 28%, rgba(0, 0, 0, 0.16));
+}
+
+.viewer-overlay {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #fff7ef;
+  z-index: 2;
+}
+
+.viewer-chip {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 247, 239, 0.14);
+  backdrop-filter: blur(10px);
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.hotspot-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.hotspot {
+  position: absolute;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  border: none;
+  color: #fff7ef;
+  cursor: pointer;
+}
+
+.hotspot-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff7ef;
+  box-shadow: 0 0 0 10px rgba(255, 247, 239, 0.18);
+}
+
+.hotspot-label {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(42, 26, 12, 0.72);
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+  font-size: 0.84rem;
+}
+
+.sidebar-card + .sidebar-card,
+.guide-card + .guide-card {
+  margin-top: 16px;
+}
+
+.scene-list {
+  display: grid;
+  gap: 10px;
+}
+
+.scene-item {
+  padding: 14px;
+  border-radius: 18px;
+  cursor: pointer;
+}
+
+.scene-item.active {
+  background: rgba(181, 91, 53, 0.11);
+  border-color: rgba(181, 91, 53, 0.24);
+}
+
+.scene-item strong,
+.venue-content h3 {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.booking-form {
+  display: grid;
+  gap: 14px;
+  background: var(--surface-strong);
+  border-radius: 26px;
+  border: 1px solid var(--line);
+}
+
+.wide-button {
+  width: 100%;
+  padding-block: 16px;
+}
+
+.booking-preview ul {
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.form-result {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(29, 106, 82, 0.08);
+  border: 1px solid rgba(29, 106, 82, 0.18);
+}
+
+.form-result.success {
+  color: var(--success);
+}
+
+@media (max-width: 1100px) {
+  .hero-grid,
+  .tour-layout,
+  .booking-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-shell {
+    width: min(100% - 16px, 1280px);
+    margin-top: 8px;
+  }
+
+  .hero,
+  .section {
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  .topbar,
+  .section-heading,
+  .viewer-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-actions {
+    grid-auto-flow: row;
+  }
+
+  .hero-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .panorama-frame {
+    min-height: 360px;
+  }
+}

@@ -1,0 +1,9 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#102631"/>
+  <rect y="590" width="1600" height="310" fill="#1B4553"/>
+  <path d="M178 510L798 170L1418 510V590H178V510Z" fill="#28586A"/>
+  <rect x="528" y="214" width="540" height="148" rx="18" fill="#84C3C7" fill-opacity="0.3"/>
+  <circle cx="246" cy="130" r="116" fill="#69B7BF" fill-opacity="0.18"/>
+  <circle cx="1356" cy="118" r="116" fill="#DFFDFB" fill-opacity="0.14"/>
+  <text x="96" y="812" fill="#EFFCFD" font-family="Arial" font-size="56" font-weight="700">Silk Congress Auditorium 360 Placeholder</text>
+</svg>

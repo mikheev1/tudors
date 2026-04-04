@@ -1,0 +1,42 @@
+[
+  {
+    "id": "root-superadmin",
+    "companyId": "platform",
+    "fullName": "Platform Superadmin",
+    "username": "superadmin",
+    "password": "superadmin123",
+    "role": "superadmin"
+  },
+  {
+    "id": "mgr-city-1",
+    "companyId": "city-table",
+    "fullName": "Amina Rakhimova",
+    "username": "city.manager",
+    "password": "demo123",
+    "role": "admin"
+  },
+  {
+    "id": "mgr-city-2",
+    "companyId": "city-table",
+    "fullName": "Bekhruz N.",
+    "username": "city.sales",
+    "password": "demo123",
+    "role": "manager"
+  },
+  {
+    "id": "mgr-stay-1",
+    "companyId": "prime-stay",
+    "fullName": "Jasur Karimov",
+    "username": "stay.manager",
+    "password": "demo123",
+    "role": "manager"
+  },
+  {
+    "id": "mgr-space-1",
+    "companyId": "space-hub",
+    "fullName": "Madina T.",
+    "username": "space.admin",
+    "password": "demo123",
+    "role": "admin"
+  }
+]

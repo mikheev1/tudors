@@ -1,0 +1,10 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#24170F"/>
+  <rect y="560" width="1600" height="340" fill="#5E412B"/>
+  <rect x="140" y="184" width="1310" height="364" rx="34" fill="#8A5B34"/>
+  <rect x="256" y="242" width="212" height="256" rx="20" fill="#B88552" fill-opacity="0.45"/>
+  <rect x="548" y="250" width="490" height="248" rx="20" fill="#D6B18A" fill-opacity="0.4"/>
+  <rect x="1116" y="242" width="224" height="256" rx="20" fill="#B88552" fill-opacity="0.45"/>
+  <circle cx="799" cy="126" r="138" fill="#FFDEB4" fill-opacity="0.17"/>
+  <text x="96" y="812" fill="#FFF4E8" font-family="Arial" font-size="56" font-weight="700">Registan Main Hall 360 Placeholder</text>
+</svg>

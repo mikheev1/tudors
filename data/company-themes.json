@@ -1,0 +1,47 @@
+[
+  {
+    "id": "city-table",
+    "name": "City Table Group",
+    "logoText": "CT",
+    "logoImageUrl": "/uploads/city-table-1774220029893.jpg",
+    "accent": "#a10f37",
+    "accentDark": "#18284a",
+    "surfaceTint": "rgba(251, 246, 247, 0.96)",
+    "panelSurface": "rgba(255, 255, 255, 0.98)",
+    "dashboardBackgroundUrl": "",
+    "telegramBotName": "Tudors Concierge",
+    "telegramAdminChatId": "",
+    "managerReminderLeadMinutes": 60,
+    "customerReminderLeadMinutes": 30
+  },
+  {
+    "id": "prime-stay",
+    "name": "Prime Stay",
+    "logoText": "PS",
+    "logoImageUrl": "",
+    "accent": "#a10f37",
+    "accentDark": "#18284a",
+    "surfaceTint": "rgba(251, 246, 247, 0.96)",
+    "panelSurface": "rgba(255, 255, 255, 0.98)",
+    "dashboardBackgroundUrl": "",
+    "telegramBotName": "Tudors Concierge",
+    "telegramAdminChatId": "",
+    "managerReminderLeadMinutes": 60,
+    "customerReminderLeadMinutes": 30
+  },
+  {
+    "id": "space-hub",
+    "name": "Space Hub",
+    "logoText": "SH",
+    "logoImageUrl": "",
+    "accent": "#a10f37",
+    "accentDark": "#18284a",
+    "surfaceTint": "rgba(251, 246, 247, 0.96)",
+    "panelSurface": "rgba(255, 255, 255, 0.98)",
+    "dashboardBackgroundUrl": "",
+    "telegramBotName": "Tudors Concierge",
+    "telegramAdminChatId": "",
+    "managerReminderLeadMinutes": 60,
+    "customerReminderLeadMinutes": 30
+  }
+]
