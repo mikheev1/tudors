@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ManagerDashboard } from "@/components/manager-dashboard";
@@ -80,19 +79,7 @@ export default async function ManagerPage() {
   }
 
   return (
-    <main className="page-shell page-shell-immersive manager-shell-page">
-      <div className="manager-inline-header-actions">
-        <Link className="manager-header-action" href="/">
-          <span className="manager-header-action-icon" aria-hidden="true">↗</span>
-          <span>К витрине</span>
-        </Link>
-        <form action="/api/admin/logout" method="post">
-          <button className="manager-header-action" type="submit">
-            <span className="manager-header-action-icon" aria-hidden="true">↩</span>
-            <span>Выйти</span>
-          </button>
-        </form>
-      </div>
+    <>
       <ManagerDashboard
         bookings={scopedBookings}
         companies={companyThemes}
@@ -114,6 +101,6 @@ export default async function ManagerPage() {
         role={session.role}
         waitlistEntries={scopedWaitlistEntries}
       />
-    </main>
+    </>
   );
 }

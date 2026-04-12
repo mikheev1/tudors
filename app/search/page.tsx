@@ -14,8 +14,6 @@ export default async function SearchPage({
   const companyThemes = await getCompanyThemes();
 
   return (
-    <main className="page-shell page-shell-immersive">
-      <TourExplorer companyTheme={companyThemes[0]} initialFilters={filters} mode="search" venues={venues} />
-    </main>
+    <TourExplorer companyTheme={companyThemes[0]} initialFilters={filters} mode="search" venues={venues} />
   );
 }

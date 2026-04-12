@@ -18,28 +18,16 @@ import type {
 
 function PhoneIcon() {
   return (
-    <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 20 20" width="18">
-      <path
-        d="M5.55 2.5h2.2c.39 0 .73.27.82.65l.75 3.23a.84.84 0 0 1-.24.8L7.5 8.73a11.45 11.45 0 0 0 3.77 3.77l1.55-1.58a.84.84 0 0 1 .8-.24l3.23.75c.38.09.65.43.65.82v2.2a1.05 1.05 0 0 1-1.05 1.05A13.95 13.95 0 0 1 2.5 3.55 1.05 1.05 0 0 1 3.55 2.5Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.6"
-      />
+    <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 20 20" width="16">
+      <path d="M5.55 2.5h2.2c.39 0 .73.27.82.65l.75 3.23a.84.84 0 0 1-.24.8L7.5 8.73a11.45 11.45 0 0 0 3.77 3.77l1.55-1.58a.84.84 0 0 1 .8-.24l3.23.75c.38.09.65.43.65.82v2.2a1.05 1.05 0 0 1-1.05 1.05A13.95 13.95 0 0 1 2.5 3.55 1.05 1.05 0 0 1 3.55 2.5Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
     </svg>
   );
 }
 
 function TelegramIcon() {
   return (
-    <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 20 20" width="18">
-      <path
-        d="M17.36 3.02 2.9 8.6c-.99.4-.98.96-.18 1.2l3.71 1.16 1.43 4.44c.17.48.08.67.6.67.4 0 .58-.19.8-.42l2-1.94 4.15 3.06c.77.42 1.32.2 1.51-.72l2.46-11.62c.28-1.13-.43-1.64-1.35-1.41Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.35"
-      />
+    <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 20 20" width="16">
+      <path d="M17.36 3.02 2.9 8.6c-.99.4-.98.96-.18 1.2l3.71 1.16 1.43 4.44c.17.48.08.67.6.67.4 0 .58-.19.8-.42l2-1.94 4.15 3.06c.77.42 1.32.2 1.51-.72l2.46-11.62c.28-1.13-.43-1.64-1.35-1.41Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.35" />
       <path d="m6.82 10.7 8.28-5.22" stroke="currentColor" strokeLinecap="round" strokeWidth="1.35" />
     </svg>
   );
@@ -81,178 +69,79 @@ type ConfirmState = {
 
 function getTodayIso() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 function formatOperationalDate(value: string) {
-  if (!value) {
-    return "без даты";
-  }
-
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "numeric",
-    month: "long",
-    weekday: "long"
-  }).format(new Date(`${value}T00:00:00`));
+  if (!value) return "без даты";
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", weekday: "long" }).format(new Date(`${value}T00:00:00`));
 }
 
-function formatTime(value?: string) {
-  return value || "без времени";
-}
+function formatTime(value?: string) { return value || "без времени"; }
 
-function slugifyPhone(value: string) {
-  return value.replace(/[^\d+]/g, "");
-}
+function slugifyPhone(value: string) { return value.replace(/[^\d+]/g, ""); }
 
 function buildOperationalTimeline(startHour = 11, endHour = 23) {
   const slots: string[] = [];
-
-  for (let hour = startHour; hour <= endHour; hour += 1) {
-    slots.push(`${String(hour).padStart(2, "0")}:00`);
-  }
-
+  for (let h = startHour; h <= endHour; h++) slots.push(`${String(h).padStart(2, "0")}:00`);
   return slots;
 }
 
 function getActionConfirmationText(action: ManagerAction) {
   switch (action) {
-    case "cancel":
-      return "Снять уже активную бронь? Слот освободится, и его можно будет отдать другому клиенту.";
-    case "decline":
-      return "Не подтверждать входящую заявку? Она уйдет из активной очереди.";
-    case "waitlist":
-      return "Перевести заявку в лист ожидания?";
-    case "archive":
-      return "Убрать заявку из рабочего потока в архив?";
-    case "restore":
-      return "Вернуть заявку из архива обратно в работу?";
-    case "hold":
-      return "Поставить бронь во временный резерв на 30 минут?";
-    case "confirm":
-    default:
-      return "";
+    case "cancel": return "Снять уже активную бронь? Слот освободится, и его можно будет отдать другому клиенту.";
+    case "decline": return "Не подтверждать входящую заявку? Она уйдет из активной очереди.";
+    case "waitlist": return "Перевести заявку в лист ожидания?";
+    case "archive": return "Убрать заявку из рабочего потока в архив?";
+    case "restore": return "Вернуть заявку из архива обратно в работу?";
+    case "hold": return "Поставить бронь во временный резерв на 30 минут?";
+    default: return "";
   }
 }
 
 const actionLabels: Record<ManagerAction, string> = {
-  confirm: "Подтвердить",
-  decline: "Не подтверждать",
-  hold: "Резерв 30 мин",
-  waitlist: "В ожидание",
-  cancel: "Снять бронь",
-  archive: "Архивировать",
-  restore: "Вернуть в работу"
+  confirm: "Подтвердить", decline: "Не подтверждать", hold: "Резерв 30 мин",
+  waitlist: "В ожидание", cancel: "Снять бронь", archive: "Архивировать", restore: "Вернуть в работу"
 };
 
-const bookingBoardColumns: Array<{
-  key: BookingBoardColumnKey;
-  title: string;
-  hint: string;
-}> = [
+const bookingBoardColumns: Array<{ key: BookingBoardColumnKey; title: string; hint: string }> = [
   { key: "new", title: "Новые", hint: "Ждут решения" },
   { key: "hold_pending", title: "Резерв", hint: "Временное удержание" },
   { key: "confirmed", title: "Подтверждены", hint: "Активные брони" },
-  { key: "waitlist", title: "Ожидание", hint: "Заявки без свободного слота" },
-  { key: "waitlist_entries", title: "Лист ожидания", hint: "Отдельная очередь клиентов" },
+  { key: "waitlist", title: "Ожидание", hint: "Без свободного слота" },
+  { key: "waitlist_entries", title: "Лист ожидания", hint: "Отдельная очередь" },
   { key: "declined", title: "Закрыты", hint: "Отклонены или сняты" }
 ];
 
-const SUPPORT_TELEGRAM_HANDLE = "@fdaffdklafjew";
 const SUPPORT_TELEGRAM_URL = "https://t.me/fdaffdklafjew";
 
 function getBookingStatusMeta(booking: ManagerBooking) {
   if (booking.status === "declined") {
-    if (booking.managerNote.toLowerCase().includes("отмен")) {
-      return {
-        shortLabel: "Снята",
-        detailLabel: "Бронь снята после создания",
-        tone: "cancelled"
-      } as const;
-    }
-
-    if (booking.managerNote.toLowerCase().includes("отклон")) {
-      return {
-        shortLabel: "Не подтверждена",
-        detailLabel: "Входящая заявка отклонена",
-        tone: "declined"
-      } as const;
-    }
+    if (booking.managerNote.toLowerCase().includes("отмен"))
+      return { shortLabel: "Снята", detailLabel: "Бронь снята после создания", tone: "cancelled" } as const;
+    return { shortLabel: "Не подтверждена", detailLabel: "Входящая заявка отклонена", tone: "declined" } as const;
   }
-
-  if (booking.status === "hold_pending") {
-    return {
-      shortLabel: "Резерв",
-      detailLabel: "Держим слот 30 минут",
-      tone: "hold"
-    } as const;
-  }
-
-  if (booking.status === "confirmed") {
-    return {
-      shortLabel: "Подтверждена",
-      detailLabel: "Слот закреплен за клиентом",
-      tone: "confirmed"
-    } as const;
-  }
-
-  if (booking.status === "waitlist") {
-    return {
-      shortLabel: "Ожидание",
-      detailLabel: "Клиент в листе ожидания",
-      tone: "waitlist"
-    } as const;
-  }
-
-  return {
-    shortLabel: "Новая",
-    detailLabel: "Ждет решения менеджера",
-    tone: "new"
-  } as const;
+  if (booking.status === "hold_pending") return { shortLabel: "Резерв", detailLabel: "Держим слот 30 минут", tone: "hold" } as const;
+  if (booking.status === "confirmed") return { shortLabel: "Подтверждена", detailLabel: "Слот закреплен за клиентом", tone: "confirmed" } as const;
+  if (booking.status === "waitlist") return { shortLabel: "Ожидание", detailLabel: "Клиент в листе ожидания", tone: "waitlist" } as const;
+  return { shortLabel: "Новая", detailLabel: "Ждет решения менеджера", tone: "new" } as const;
 }
 
 function getWaitlistEntryMeta(entry: ManagerWaitlistEntry) {
-  if (entry.status === "contacted") {
-    return {
-      shortLabel: "На связи",
-      tone: "hold"
-    } as const;
-  }
-
-  return {
-    shortLabel: "Ожидание",
-    tone: "waitlist"
-  } as const;
+  if (entry.status === "contacted") return { shortLabel: "На связи", tone: "contacted" } as const;
+  return { shortLabel: "Ожидание", tone: "active" } as const;
 }
 
-function getBoardMoveAction(
-  booking: ManagerBooking,
-  targetStatus: BookingBoardColumnKey
-): ManagerAction | null {
-  if (booking.status === targetStatus) {
-    return null;
-  }
-
+function getBoardMoveAction(booking: ManagerBooking, targetStatus: BookingBoardColumnKey): ManagerAction | null {
+  if (booking.status === targetStatus) return null;
   switch (targetStatus) {
-    case "confirmed":
-      return statusActions[booking.status].includes("confirm") ? "confirm" : null;
-    case "hold_pending":
-      return statusActions[booking.status].includes("hold") ? "hold" : null;
-    case "waitlist":
-      return statusActions[booking.status].includes("waitlist") ? "waitlist" : null;
+    case "confirmed": return statusActions[booking.status].includes("confirm") ? "confirm" : null;
+    case "hold_pending": return statusActions[booking.status].includes("hold") ? "hold" : null;
+    case "waitlist": return statusActions[booking.status].includes("waitlist") ? "waitlist" : null;
     case "declined":
-      if (booking.status === "confirmed") {
-        return statusActions[booking.status].includes("cancel") ? "cancel" : null;
-      }
-
+      if (booking.status === "confirmed") return statusActions[booking.status].includes("cancel") ? "cancel" : null;
       return statusActions[booking.status].includes("decline") ? "decline" : null;
-    case "waitlist_entries":
-    case "new":
-    default:
-      return null;
+    default: return null;
   }
 }
 
@@ -265,15 +154,8 @@ const statusActions: Record<ManagerBooking["status"], ManagerAction[]> = {
 };
 
 export function ManagerDashboard({
-  bookings,
-  listings,
-  companies,
-  companyTheme,
-  managerName,
-  operationalVenues,
-  reminders,
-  role,
-  waitlistEntries
+  bookings, listings, companies, companyTheme, managerName,
+  operationalVenues, reminders, role, waitlistEntries
 }: ManagerDashboardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -301,31 +183,18 @@ export function ManagerDashboard({
   const superadminPageCount = Math.max(1, Math.ceil(listings.length / superadminPageSize));
 
   function pushNotice(next: Omit<NoticeState, "id">) {
-    setNotice({
-      id: Date.now(),
-      ...next
-    });
+    setNotice({ id: Date.now(), ...next });
   }
 
   function openConfirmDialog(config: Omit<ConfirmState, "onConfirm"> & { onConfirm: () => void }) {
-    setConfirmState({
-      ...config,
-      onConfirm: () => {
-        setConfirmState(null);
-        config.onConfirm();
-      }
-    });
+    setConfirmState({ ...config, onConfirm: () => { setConfirmState(null); config.onConfirm(); } });
   }
 
   useEffect(() => {
-    if (!notice) {
-      return;
-    }
-
+    if (!notice) return;
     const timeout = window.setTimeout(() => {
       setNotice((current) => (current?.id === notice.id ? null : current));
     }, 4200);
-
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
@@ -334,42 +203,19 @@ export function ManagerDashboard({
   }, [superadminPageCount]);
 
   useEffect(() => {
-    if (role === "superadmin") {
-      return;
-    }
-
+    if (role === "superadmin") return;
     let disposed = false;
-
     const processNotificationsSilently = async () => {
-      if (disposed || document.visibilityState !== "visible") {
-        return;
-      }
-
-      try {
-        await fetch("/api/admin/notifications/process", {
-          method: "POST"
-        });
-      } catch {
-        // Silent background sync for notification queue.
-      }
+      if (disposed || document.visibilityState !== "visible") return;
+      try { await fetch("/api/admin/notifications/process", { method: "POST" }); } catch { /* silent */ }
     };
-
     void processNotificationsSilently();
-    const interval = window.setInterval(() => {
-      void processNotificationsSilently();
-    }, 60_000);
-
-    return () => {
-      disposed = true;
-      window.clearInterval(interval);
-    };
+    const interval = window.setInterval(() => void processNotificationsSilently(), 60_000);
+    return () => { disposed = true; window.clearInterval(interval); };
   }, [role]);
 
   const pagedListings = useMemo(() => {
-    if (role !== "superadmin") {
-      return listings;
-    }
-
+    if (role !== "superadmin") return listings;
     const start = (superadminPage - 1) * superadminPageSize;
     return listings.slice(start, start + superadminPageSize);
   }, [listings, role, superadminPage]);
@@ -381,102 +227,68 @@ export function ManagerDashboard({
     holdCount: bookings.filter((item) => !item.archived && item.status === "hold_pending").length,
     archivedCount: bookings.filter((item) => item.archived).length
   };
+
   const selectedVenue = useMemo(
-    () => operationalVenues.find((venue) => venue.id === selectedVenueId) ?? operationalVenues[0] ?? null,
+    () => operationalVenues.find((v) => v.id === selectedVenueId) ?? operationalVenues[0] ?? null,
     [operationalVenues, selectedVenueId]
   );
   const operationalTimeline = useMemo(
-    () =>
-      selectedVenue?.bookingSlots && selectedVenue.bookingSlots.length > 0
-        ? selectedVenue.bookingSlots
-        : buildOperationalTimeline(),
+    () => selectedVenue?.bookingSlots?.length ? selectedVenue.bookingSlots : buildOperationalTimeline(),
     [selectedVenue]
   );
   const bookablePoints = useMemo(
-    () =>
-      selectedVenue
-        ? selectedVenue.scenes.flatMap((scene) =>
-            scene.hotspots
-              .filter((hotspot) => hotspot.kind !== "scene")
-              .map((hotspot) => ({
-                id: hotspot.id,
-                label: hotspot.heading ?? hotspot.label,
-                floorPlanLabel: scene.floorPlanLabel,
-                sceneTitle: scene.title,
-                status: hotspot.status,
-                kind: hotspot.kind,
-                yaw: hotspot.yaw ?? 0,
-                pitch: hotspot.pitch ?? 0
-              }))
-          )
-        : [],
+    () => selectedVenue
+      ? selectedVenue.scenes.flatMap((scene) =>
+          scene.hotspots.filter((h) => h.kind !== "scene").map((h) => ({
+            id: h.id, label: h.heading ?? h.label,
+            floorPlanLabel: scene.floorPlanLabel, sceneTitle: scene.title,
+            status: h.status, kind: h.kind, yaw: h.yaw ?? 0, pitch: h.pitch ?? 0
+          }))
+        )
+      : [],
     [selectedVenue]
   );
   const manualScenes = selectedVenue?.scenes ?? [];
-  const selectedManualScene =
-    manualScenes.find((scene) => scene.id === selectedSceneId) ?? manualScenes[0] ?? null;
+  const selectedManualScene = manualScenes.find((s) => s.id === selectedSceneId) ?? manualScenes[0] ?? null;
   const selectedScenePoints = useMemo(
-    () =>
-      bookablePoints.filter((point) =>
-        selectedManualScene ? point.sceneTitle === selectedManualScene.title : true
-      ),
+    () => bookablePoints.filter((p) => selectedManualScene ? p.sceneTitle === selectedManualScene.title : true),
     [bookablePoints, selectedManualScene]
   );
   const selectedPoint = useMemo(
-    () => bookablePoints.find((point) => point.id === selectedHotspotId) ?? bookablePoints[0] ?? null,
+    () => bookablePoints.find((p) => p.id === selectedHotspotId) ?? bookablePoints[0] ?? null,
     [bookablePoints, selectedHotspotId]
   );
   const bookingsForOperationalDate = useMemo(
-    () => bookings.filter((booking) => !booking.eventDateIso || booking.eventDateIso === operationalDate),
+    () => bookings.filter((b) => !b.eventDateIso || b.eventDateIso === operationalDate),
     [bookings, operationalDate]
   );
   const activeBookingsForOperationalDate = useMemo(
-    () => bookingsForOperationalDate.filter((booking) => !booking.archived),
+    () => bookingsForOperationalDate.filter((b) => !b.archived),
     [bookingsForOperationalDate]
   );
-  const archivedBookingsForOperationalDate = useMemo(
-    () => bookingsForOperationalDate.filter((booking) => booking.archived),
-    [bookingsForOperationalDate]
-  );
-  const archivedBookings = useMemo(
-    () => bookings.filter((booking) => booking.archived),
-    [bookings]
-  );
+  const archivedBookings = useMemo(() => bookings.filter((b) => b.archived), [bookings]);
   const filteredArchivedBookings = useMemo(() => {
     const query = archiveQuery.trim().toLowerCase();
-
-    return archivedBookings.filter((booking) => {
-      const matchesQuery =
-        !query ||
-        booking.customerName.toLowerCase().includes(query) ||
-        booking.placeLabel.toLowerCase().includes(query) ||
-        booking.phone.toLowerCase().includes(query) ||
-        booking.dateLabel.toLowerCase().includes(query);
-      const matchesStatus = archiveStatusFilter === "all" || booking.status === archiveStatusFilter;
-      const matchesDate = !archiveDateFilter || booking.eventDateIso === archiveDateFilter;
-
+    return archivedBookings.filter((b) => {
+      const matchesQuery = !query || b.customerName.toLowerCase().includes(query) ||
+        b.placeLabel.toLowerCase().includes(query) || b.phone.toLowerCase().includes(query) ||
+        b.dateLabel.toLowerCase().includes(query);
+      const matchesStatus = archiveStatusFilter === "all" || b.status === archiveStatusFilter;
+      const matchesDate = !archiveDateFilter || b.eventDateIso === archiveDateFilter;
       return matchesQuery && matchesStatus && matchesDate;
     });
   }, [archiveDateFilter, archiveQuery, archiveStatusFilter, archivedBookings]);
+
   const waitlistForOperationalDate = useMemo(
-    () =>
-      waitlistEntries.filter(
-        (entry) => !entry.requestedDateIso || entry.requestedDateIso === operationalDate
-      ),
+    () => waitlistEntries.filter((e) => !e.requestedDateIso || e.requestedDateIso === operationalDate),
     [operationalDate, waitlistEntries]
   );
   const activeWaitlistForOperationalDate = useMemo(
-    () =>
-      waitlistForOperationalDate.filter(
-        (entry) => entry.status === "active" || entry.status === "contacted"
-      ),
+    () => waitlistForOperationalDate.filter((e) => e.status === "active" || e.status === "contacted"),
     [waitlistForOperationalDate]
   );
   const archivedWaitlistForOperationalDate = useMemo(
-    () =>
-      waitlistForOperationalDate.filter(
-        (entry) => entry.status === "resolved" || entry.status === "cancelled"
-      ),
+    () => waitlistForOperationalDate.filter((e) => e.status === "resolved" || e.status === "cancelled"),
     [waitlistForOperationalDate]
   );
   const remindersForOperationalDate = useMemo(
@@ -484,461 +296,187 @@ export function ManagerDashboard({
     [operationalDate, reminders]
   );
   const selectedBookingDetail = useMemo(
-    () => bookingsForOperationalDate.find((booking) => booking.id === selectedBookingId) ?? null,
+    () => bookingsForOperationalDate.find((b) => b.id === selectedBookingId) ?? null,
     [bookingsForOperationalDate, selectedBookingId]
   );
   const bookingBoard = useMemo(
-    () =>
-      bookingBoardColumns.map((column) => ({
-        ...column,
-        items:
-          column.key === "waitlist_entries"
-            ? activeWaitlistForOperationalDate.map((entry) => ({
-                kind: "waitlist" as const,
-                id: `waitlist-${entry.id}`,
-                entry
-              }))
-            : activeBookingsForOperationalDate
-                .filter((booking) => booking.status === column.key)
-                .map((booking) => ({
-                  kind: "booking" as const,
-                  id: booking.id,
-                  booking
-                }))
-      })),
+    () => bookingBoardColumns.map((column) => ({
+      ...column,
+      items: column.key === "waitlist_entries"
+        ? activeWaitlistForOperationalDate.map((entry) => ({ kind: "waitlist" as const, id: `wl-${entry.id}`, entry }))
+        : activeBookingsForOperationalDate.filter((b) => b.status === column.key).map((b) => ({ kind: "booking" as const, id: b.id, booking: b }))
+    })),
     [activeBookingsForOperationalDate, activeWaitlistForOperationalDate]
   );
   const nextUpcomingBooking = useMemo(
-    () =>
-      [...bookingsForOperationalDate]
-        .sort((a, b) => (a.startTimeRaw || "").localeCompare(b.startTimeRaw || ""))
-        .find((booking) => booking.status !== "declined"),
+    () => [...bookingsForOperationalDate].sort((a, b) => (a.startTimeRaw || "").localeCompare(b.startTimeRaw || "")).find((b) => b.status !== "declined"),
     [bookingsForOperationalDate]
   );
   const urgentReminder = remindersForOperationalDate.find((item) => item.status === "pending") ?? null;
-  const contactedWaitlistEntry =
-    activeWaitlistForOperationalDate.find((entry) => entry.status === "contacted") ?? null;
-  const activeWaitlistEntry =
-    activeWaitlistForOperationalDate.find((entry) => entry.status === "active") ?? null;
+  const contactedWaitlistEntry = activeWaitlistForOperationalDate.find((e) => e.status === "contacted") ?? null;
+  const activeWaitlistEntry = activeWaitlistForOperationalDate.find((e) => e.status === "active") ?? null;
   const priorityWaitlistEntry = contactedWaitlistEntry ?? activeWaitlistEntry;
+
   const attentionItems = useMemo(() => {
     const items: Array<{ id: string; label: string; description: string }> = [];
-    const pendingBookings = bookingsForOperationalDate.filter((booking) => booking.status === "new");
-    const holdBookings = bookingsForOperationalDate.filter((booking) => booking.status === "hold_pending");
-    const contactedWaitlist = waitlistForOperationalDate.filter((entry) => entry.status === "contacted");
-
-    if (pendingBookings.length > 0) {
-      items.push({
-        id: "pending-bookings",
-        label: "Новые заявки",
-        description: `${pendingBookings.length} ждут подтверждения на ${formatOperationalDate(operationalDate)}`
-      });
-    }
-
-    if (holdBookings.length > 0) {
-      items.push({
-        id: "hold-bookings",
-        label: "Брони в резерве",
-        description: `${holdBookings.length} нужно подтвердить или снять с резерва`
-      });
-    }
-
-    if (urgentReminder) {
-      items.push({
-        id: `reminder-${urgentReminder.id}`,
-        label: "Напоминание менеджеру",
-        description: urgentReminder.message
-      });
-    }
-
-    if (contactedWaitlist.length > 0) {
-      items.push({
-        id: "contacted-waitlist",
-        label: "Ждем ответ клиента",
-        description: `${contactedWaitlist.length} клиентам уже написали или позвонили, нужно закрыть результат`
-      });
-    }
-
-    if (items.length === 0) {
-      items.push({
-        id: "calm-day",
-        label: "Спокойная смена",
-        description: "На выбранную дату нет срочных задач, можно работать по входящим броням."
-      });
-    }
-
+    const pendingBookings = bookingsForOperationalDate.filter((b) => b.status === "new");
+    const holdBookings = bookingsForOperationalDate.filter((b) => b.status === "hold_pending");
+    const contactedWaitlist = waitlistForOperationalDate.filter((e) => e.status === "contacted");
+    if (pendingBookings.length > 0) items.push({ id: "pending", label: "Новые заявки", description: `${pendingBookings.length} ждут подтверждения на ${formatOperationalDate(operationalDate)}` });
+    if (holdBookings.length > 0) items.push({ id: "hold", label: "Брони в резерве", description: `${holdBookings.length} нужно подтвердить или снять с резерва` });
+    if (urgentReminder) items.push({ id: `reminder-${urgentReminder.id}`, label: "Напоминание менеджеру", description: urgentReminder.message });
+    if (contactedWaitlist.length > 0) items.push({ id: "contacted", label: "Ждем ответ клиента", description: `${contactedWaitlist.length} клиентам уже написали или позвонили` });
+    if (items.length === 0) items.push({ id: "calm", label: "Спокойная смена", description: "На выбранную дату нет срочных задач, можно работать по входящим броням." });
     return items.slice(0, 3);
   }, [bookingsForOperationalDate, operationalDate, urgentReminder, waitlistForOperationalDate]);
-  const occupancyRows = useMemo(
-    () =>
-      bookablePoints.map((point) => {
-        const occupiedSlots = new Set(
-          bookingsForOperationalDate
-            .filter(
-              (booking) =>
-                booking.placeLabel === point.label &&
-                booking.startTimeRaw &&
-                booking.status !== "declined"
-            )
-            .map((booking) => booking.startTimeRaw as string)
-        );
 
-        return {
-          point,
-          occupiedSlots
-        };
-      }),
+  const occupancyRows = useMemo(
+    () => bookablePoints.map((point) => {
+      const occupiedSlots = new Set(
+        bookingsForOperationalDate.filter((b) => b.placeLabel === point.label && b.startTimeRaw && b.status !== "declined").map((b) => b.startTimeRaw as string)
+      );
+      return { point, occupiedSlots };
+    }),
     [bookablePoints, bookingsForOperationalDate]
   );
   const manualTimeOptions = useMemo(() => {
-    const availableTimes = manualSlots
-      .filter((slot) => slot.status !== "unavailable")
-      .map((slot) => ({
-        value: slot.time,
-        label: slot.label
-      }));
-
-    if (manualTime && !availableTimes.some((option) => option.value === manualTime)) {
-      return [{ value: manualTime, label: `${manualTime} · вручную` }, ...availableTimes];
-    }
-
-    return availableTimes;
+    const available = manualSlots.filter((s) => s.status !== "unavailable").map((s) => ({ value: s.time, label: s.label }));
+    if (manualTime && !available.some((o) => o.value === manualTime)) return [{ value: manualTime, label: `${manualTime} · вручную` }, ...available];
+    return available;
   }, [manualSlots, manualTime]);
 
-  useEffect(() => {
-    if (!selectedVenueId && operationalVenues[0]) {
-      setSelectedVenueId(operationalVenues[0].id);
-    }
-  }, [operationalVenues, selectedVenueId]);
-
-  useEffect(() => {
-    if (!selectedPoint && bookablePoints[0]) {
-      setSelectedHotspotId(bookablePoints[0].id);
-    }
-  }, [bookablePoints, selectedPoint]);
-
-  useEffect(() => {
-    setManualDate(operationalDate);
-    setManualTime("");
-    setPendingManualTime("");
-  }, [operationalDate]);
-
-  useEffect(() => {
-    if (!selectedSceneId && manualScenes[0]) {
-      setSelectedSceneId(manualScenes[0].id);
-    }
-  }, [manualScenes, selectedSceneId]);
-
+  useEffect(() => { if (!selectedVenueId && operationalVenues[0]) setSelectedVenueId(operationalVenues[0].id); }, [operationalVenues, selectedVenueId]);
+  useEffect(() => { if (!selectedPoint && bookablePoints[0]) setSelectedHotspotId(bookablePoints[0].id); }, [bookablePoints, selectedPoint]);
+  useEffect(() => { setManualDate(operationalDate); setManualTime(""); setPendingManualTime(""); }, [operationalDate]);
+  useEffect(() => { if (!selectedSceneId && manualScenes[0]) setSelectedSceneId(manualScenes[0].id); }, [manualScenes, selectedSceneId]);
   useEffect(() => {
     if (selectedPoint && selectedPoint.sceneTitle !== selectedManualScene?.title) {
-      const sceneMatch = manualScenes.find((scene) => scene.title === selectedPoint.sceneTitle);
-      if (sceneMatch) {
-        setSelectedSceneId(sceneMatch.id);
-      }
+      const match = manualScenes.find((s) => s.title === selectedPoint.sceneTitle);
+      if (match) setSelectedSceneId(match.id);
     }
   }, [manualScenes, selectedManualScene, selectedPoint]);
 
   useEffect(() => {
     async function loadSlots() {
-      if (!selectedVenue || !selectedPoint || !manualDate) {
-        setManualSlots([]);
-        setIsManualSlotLoading(false);
-        return;
-      }
-
+      if (!selectedVenue || !selectedPoint || !manualDate) { setManualSlots([]); setIsManualSlotLoading(false); return; }
       setIsManualSlotLoading(true);
-      const params = new URLSearchParams({
-        venueId: selectedVenue.id,
-        date: manualDate,
-        hotspotLabel: selectedPoint.label,
-        hotspotStatus: selectedPoint.status || "",
-        hotspotKind: selectedPoint.kind
-      });
+      const params = new URLSearchParams({ venueId: selectedVenue.id, date: manualDate, hotspotLabel: selectedPoint.label, hotspotStatus: selectedPoint.status || "", hotspotKind: selectedPoint.kind });
       try {
-        const response = await fetch(`/api/availability?${params.toString()}`, { cache: "no-store" });
+        const response = await fetch(`/api/availability?${params}`, { cache: "no-store" });
         const payload = (await response.json()) as { data?: Array<{ time: string; label: string; status: string }> };
         const slots = payload.data || [];
         setManualSlots(slots);
-
-        const preferredTime = pendingManualTime || manualTime;
-        const matchedSlot = slots.find((slot) => slot.time === preferredTime);
-
-        if (preferredTime && !matchedSlot) {
-          setManualTime(preferredTime);
-        } else if (preferredTime && matchedSlot?.status !== "unavailable") {
-          setManualTime(preferredTime);
-        } else if (preferredTime && matchedSlot?.status === "unavailable") {
-          setManualTime("");
-        }
-
-        if (pendingManualTime) {
-          setPendingManualTime("");
-        }
-      } finally {
-        setIsManualSlotLoading(false);
-      }
+        const preferred = pendingManualTime || manualTime;
+        const matched = slots.find((s) => s.time === preferred);
+        if (preferred && (!matched || matched.status !== "unavailable")) setManualTime(preferred);
+        else if (preferred && matched?.status === "unavailable") setManualTime("");
+        if (pendingManualTime) setPendingManualTime("");
+      } finally { setIsManualSlotLoading(false); }
     }
-
     void loadSlots();
   }, [manualDate, manualTime, pendingManualTime, selectedPoint, selectedVenue]);
 
   function executeBookingAction(bookingId: string, action: ManagerAction) {
     startTransition(async () => {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ action })
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action })
       });
-
       const payload = (await response.json()) as { message?: string };
-
-      if (!response.ok) {
-        pushNotice({
-          kind: "error",
-          message: payload.message || "Не удалось обновить заявку"
-        });
-        return;
-      }
-
-      pushNotice({
-        kind: "success",
-        message: "Статус заявки обновлен",
-        actionLabel: "К заявкам",
-        targetTab: "bookings"
-      });
+      if (!response.ok) { pushNotice({ kind: "error", message: payload.message || "Не удалось обновить заявку" }); return; }
+      pushNotice({ kind: "success", message: "Статус заявки обновлен", actionLabel: "К заявкам", targetTab: "bookings" });
       router.refresh();
     });
   }
 
   function handleAction(bookingId: string, action: ManagerAction) {
-    const confirmationText = getActionConfirmationText(action);
-
-    if (confirmationText) {
-      openConfirmDialog({
-        title: actionLabels[action],
-        description: confirmationText,
-        confirmLabel: actionLabels[action],
-        tone: action === "cancel" || action === "decline" ? "danger" : "default",
-        onConfirm: () => executeBookingAction(bookingId, action)
-      });
+    const confirmText = getActionConfirmationText(action);
+    if (confirmText) {
+      openConfirmDialog({ title: actionLabels[action], description: confirmText, confirmLabel: actionLabels[action], tone: action === "cancel" || action === "decline" ? "danger" : "default", onConfirm: () => executeBookingAction(bookingId, action) });
       return;
     }
-
     executeBookingAction(bookingId, action);
   }
 
   function handleBoardMove(booking: ManagerBooking, targetStatus: BookingBoardColumnKey) {
     const action = getBoardMoveAction(booking, targetStatus);
-
-    if (!action) {
-      pushNotice({
-        kind: "info",
-        message: "Эту заявку нельзя перевести в выбранную колонку"
-      });
-      return;
-    }
-
+    if (!action) { pushNotice({ kind: "info", message: "Эту заявку нельзя перевести в выбранную колонку" }); return; }
     handleAction(booking.id, action);
   }
 
   function handleWaitlistOffer(entryId: string) {
     openConfirmDialog({
-      title: "Отметить звонок клиенту",
-      description: "Подтверди, что ты уже позвонил клиенту. После этого запись перейдет в этап ожидания ответа.",
-      confirmLabel: "Позвонил",
-      onConfirm: () => {
-        startTransition(async () => {
-          const response = await fetch(`/api/admin/waitlist/${entryId}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ action: "offer" })
-          });
-          const payload = (await response.json()) as { message?: string };
-          if (!response.ok) {
-            pushNotice({
-              kind: "error",
-              message: payload.message || "Не удалось обработать лист ожидания"
-            });
-            return;
-          }
-
-          pushNotice({
-            kind: "success",
-            message: "Звонок отмечен. Теперь по клиенту нужно зафиксировать итог.",
-            actionLabel: "Открыть лист",
-            targetTab: "waitlist"
-          });
-          router.refresh();
-        });
-      }
+      title: "Отметить звонок клиенту", description: "Подтверди, что ты уже позвонил клиенту.", confirmLabel: "Позвонил",
+      onConfirm: () => startTransition(async () => {
+        const response = await fetch(`/api/admin/waitlist/${entryId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "offer" }) });
+        const payload = (await response.json()) as { message?: string };
+        if (!response.ok) { pushNotice({ kind: "error", message: payload.message || "Не удалось" }); return; }
+        pushNotice({ kind: "success", message: "Звонок отмечен.", actionLabel: "Открыть лист", targetTab: "waitlist" });
+        router.refresh();
+      })
     });
   }
 
   function handleWaitlistNoResponse(entryId: string) {
     openConfirmDialog({
-      title: "Закрыть ожидание",
-      description: "Отметить, что клиент не ответил, и убрать его из активного листа ожидания?",
-      confirmLabel: "Не ответил",
-      tone: "danger",
-      onConfirm: () => {
-        startTransition(async () => {
-          const response = await fetch(`/api/admin/waitlist/${entryId}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ action: "no-response" })
-          });
-          const payload = (await response.json()) as { message?: string };
-          if (!response.ok) {
-            pushNotice({
-              kind: "error",
-              message: payload.message || "Не удалось закрыть запись листа ожидания"
-            });
-            return;
-          }
-
-          pushNotice({
-            kind: "success",
-            message: "Запись листа ожидания закрыта как без ответа",
-            actionLabel: "Открыть лист",
-            targetTab: "waitlist"
-          });
-          router.refresh();
-        });
-      }
+      title: "Закрыть ожидание", description: "Отметить, что клиент не ответил?", confirmLabel: "Не ответил", tone: "danger",
+      onConfirm: () => startTransition(async () => {
+        const response = await fetch(`/api/admin/waitlist/${entryId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "no-response" }) });
+        const payload = (await response.json()) as { message?: string };
+        if (!response.ok) { pushNotice({ kind: "error", message: payload.message || "Не удалось" }); return; }
+        pushNotice({ kind: "success", message: "Запись закрыта как без ответа", actionLabel: "Открыть лист", targetTab: "waitlist" });
+        router.refresh();
+      })
     });
   }
 
   function handleWaitlistResponded(entryId: string) {
     openConfirmDialog({
-      title: "Отметить ответ клиента",
-      description: "Закрыть ожидание как успешный ответ клиента и убрать запись из активного списка?",
-      confirmLabel: "Ответил",
-      onConfirm: () => {
-        startTransition(async () => {
-          const response = await fetch(`/api/admin/waitlist/${entryId}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ action: "responded" })
-          });
-          const payload = (await response.json()) as { message?: string };
-          if (!response.ok) {
-            pushNotice({
-              kind: "error",
-              message: payload.message || "Не удалось отметить ответ клиента"
-            });
-            return;
-          }
-
-          pushNotice({
-            kind: "success",
-            message: "Ответ клиента отмечен. Теперь можно оформить бронь вручную.",
-            actionLabel: "К записи",
-            targetTab: "manual"
-          });
-          router.refresh();
-        });
-      }
+      title: "Отметить ответ клиента", description: "Закрыть ожидание как успешный ответ клиента?", confirmLabel: "Ответил",
+      onConfirm: () => startTransition(async () => {
+        const response = await fetch(`/api/admin/waitlist/${entryId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "responded" }) });
+        const payload = (await response.json()) as { message?: string };
+        if (!response.ok) { pushNotice({ kind: "error", message: payload.message || "Не удалось" }); return; }
+        pushNotice({ kind: "success", message: "Ответ клиента отмечен.", actionLabel: "К записи", targetTab: "manual" });
+        router.refresh();
+      })
     });
   }
 
   function handleProcessNotifications() {
     openConfirmDialog({
-      title: "Обработать уведомления",
-      description: "Система отправит все готовые к этому моменту напоминания и обновит очередь.",
-      confirmLabel: "Запустить",
-      onConfirm: () => {
-        startTransition(async () => {
-          const response = await fetch("/api/admin/notifications/process", { method: "POST" });
-          const payload = (await response.json()) as { message?: string; processed?: number };
-          if (!response.ok) {
-            pushNotice({
-              kind: "error",
-              message: payload.message || "Не удалось обработать уведомления"
-            });
-            return;
-          }
-
-          pushNotice({
-            kind: "success",
-            message: `Уведомлений обработано: ${payload.processed || 0}`,
-            actionLabel: "К уведомлениям",
-            targetTab: "reminders"
-          });
-          router.refresh();
-        });
-      }
+      title: "Обработать уведомления", description: "Система отправит все готовые напоминания.", confirmLabel: "Запустить",
+      onConfirm: () => startTransition(async () => {
+        const response = await fetch("/api/admin/notifications/process", { method: "POST" });
+        const payload = (await response.json()) as { message?: string; processed?: number };
+        if (!response.ok) { pushNotice({ kind: "error", message: payload.message || "Не удалось" }); return; }
+        pushNotice({ kind: "success", message: `Уведомлений обработано: ${payload.processed || 0}`, actionLabel: "К уведомлениям", targetTab: "reminders" });
+        router.refresh();
+      })
     });
   }
 
   function collectManualFormData() {
     const form = manualFormRef.current;
-
-    if (!form) {
-      return null;
-    }
-
-    const formData = new FormData(form);
-
+    if (!form) return null;
+    const fd = new FormData(form);
     return {
-      form,
-      name: String(formData.get("name") || "").trim(),
-      phone: String(formData.get("phone") || "").trim(),
-      telegram: String(formData.get("telegram") || "").trim(),
-      time: String(formData.get("time") || "").trim(),
-      guests: Number(formData.get("guests") || 1),
-      note: String(formData.get("note") || "").trim(),
-      status: String(formData.get("status") || "CONFIRMED")
+      form, name: String(fd.get("name") || "").trim(), phone: String(fd.get("phone") || "").trim(),
+      telegram: String(fd.get("telegram") || "").trim(), time: String(fd.get("time") || "").trim(),
+      guests: Number(fd.get("guests") || 1), note: String(fd.get("note") || "").trim(),
+      status: String(fd.get("status") || "CONFIRMED")
     };
   }
 
   function submitManualBooking(collected: NonNullable<ReturnType<typeof collectManualFormData>>) {
     startTransition(async () => {
       const response = await fetch("/api/admin/bookings/manual", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          venueId: selectedVenue?.id,
-          hotspotLabel: selectedPoint?.label,
-          name: collected.name,
-          phone: collected.phone,
-          telegram: collected.telegram,
-          date: manualDate,
-          time: manualTime || collected.time,
-          guests: collected.guests,
-          note: collected.note,
-          status: collected.status
-        })
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId: selectedVenue?.id, hotspotLabel: selectedPoint?.label, name: collected.name, phone: collected.phone, telegram: collected.telegram, date: manualDate, time: manualTime || collected.time, guests: collected.guests, note: collected.note, status: collected.status })
       });
       const payload = (await response.json()) as { message?: string };
-      if (!response.ok) {
-        pushNotice({
-          kind: "error",
-          message: payload.message || "Не удалось записать бронь"
-        });
-        return;
-      }
-
-      collected.form.reset();
-      setManualDate(operationalDate);
-      setManualTime("");
-      setManualSlots([]);
-      setActiveTab("bookings");
-      pushNotice({
-        kind: "success",
-        message: "Бронь создана и добавлена в заявки",
-        actionLabel: "К заявкам",
-        targetTab: "bookings"
-      });
+      if (!response.ok) { pushNotice({ kind: "error", message: payload.message || "Не удалось записать бронь" }); return; }
+      collected.form.reset(); setManualDate(operationalDate); setManualTime(""); setManualSlots([]); setActiveTab("bookings");
+      pushNotice({ kind: "success", message: "Бронь создана и добавлена в заявки", actionLabel: "К заявкам", targetTab: "bookings" });
       router.refresh();
     });
   }
@@ -946,249 +484,146 @@ export function ManagerDashboard({
   function handleManualBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const collected = collectManualFormData();
-
-    if (!collected) {
-      pushNotice({
-        kind: "error",
-        message: "Форма бронирования недоступна"
-      });
-      return;
-    }
-
+    if (!collected) { pushNotice({ kind: "error", message: "Форма недоступна" }); return; }
     openConfirmDialog({
       title: "Создать бронь",
       description: `Подтвердить бронь на ${selectedPoint?.label || "выбранную точку"}${manualDate ? ` · ${formatOperationalDate(manualDate)}` : ""}${collected.time ? ` · ${collected.time}` : ""}?`,
-      confirmLabel: "Создать бронь",
-      onConfirm: () => submitManualBooking(collected)
+      confirmLabel: "Создать бронь", onConfirm: () => submitManualBooking(collected)
     });
   }
 
   function handleManualWaitlist() {
     const collected = collectManualFormData();
-
-    if (!collected) {
-      pushNotice({
-        kind: "error",
-        message: "Форма листа ожидания недоступна"
-      });
-      return;
-    }
-
-    if (!selectedVenue || !selectedManualScene || !selectedPoint) {
-      pushNotice({
-        kind: "error",
-        message: "Выбери объект, сцену и точку на схеме"
-      });
-      return;
-    }
-
-    if (!collected.name || !collected.phone) {
-      pushNotice({
-        kind: "error",
-        message: "Для листа ожидания нужны имя и телефон клиента"
-      });
-      return;
-    }
-
+    if (!collected) { pushNotice({ kind: "error", message: "Форма недоступна" }); return; }
+    if (!selectedVenue || !selectedManualScene || !selectedPoint) { pushNotice({ kind: "error", message: "Выбери объект, сцену и точку" }); return; }
+    if (!collected.name || !collected.phone) { pushNotice({ kind: "error", message: "Нужны имя и телефон клиента" }); return; }
     openConfirmDialog({
       title: "Добавить в лист ожидания",
       description: `Добавить ${collected.name} в лист ожидания на ${selectedPoint.label}${manualDate ? ` · ${formatOperationalDate(manualDate)}` : ""}?`,
       confirmLabel: "Добавить",
-      onConfirm: () => {
-        startTransition(async () => {
-          const response = await fetch("/api/waitlist", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              venueId: selectedVenue.id,
-              venueName: selectedVenue.name,
-              sceneId: selectedManualScene.id,
-              sceneTitle: selectedManualScene.title,
-              hotspotId: selectedPoint.id,
-              hotspotLabel: selectedPoint.label,
-              name: collected.name,
-              phone: collected.phone,
-              telegram: collected.telegram || undefined,
-              date: manualDate || undefined,
-              time: manualTime || collected.time || undefined
-            })
-          });
-          const payload = (await response.json()) as { message?: string };
-          if (!response.ok) {
-            pushNotice({
-              kind: "error",
-              message: payload.message || "Не удалось добавить клиента в лист ожидания"
-            });
-            return;
-          }
-
-          collected.form.reset();
-          setManualDate(operationalDate);
-          setManualTime("");
-          setManualSlots([]);
-          setActiveTab("bookings");
-          pushNotice({
-            kind: "success",
-            message: "Клиент добавлен в ожидание и показан в канбане",
-            actionLabel: "К доске",
-            targetTab: "bookings"
-          });
-          router.refresh();
+      onConfirm: () => startTransition(async () => {
+        const response = await fetch("/api/waitlist", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ venueId: selectedVenue.id, venueName: selectedVenue.name, sceneId: selectedManualScene.id, sceneTitle: selectedManualScene.title, hotspotId: selectedPoint.id, hotspotLabel: selectedPoint.label, name: collected.name, phone: collected.phone, telegram: collected.telegram || undefined, date: manualDate || undefined, time: manualTime || collected.time || undefined })
         });
-      }
+        const payload = (await response.json()) as { message?: string };
+        if (!response.ok) { pushNotice({ kind: "error", message: payload.message || "Не удалось" }); return; }
+        collected.form.reset(); setManualDate(operationalDate); setManualTime(""); setManualSlots([]); setActiveTab("bookings");
+        pushNotice({ kind: "success", message: "Клиент добавлен в ожидание", actionLabel: "К доске", targetTab: "bookings" });
+        router.refresh();
+      })
     });
   }
 
+  const logoMark = companyTheme.logoText || "TS";
+
   return (
-    <section
-      className="manager-shell company-dashboard"
-      style={
-        {
-          "--accent": companyTheme.accent,
-          "--accent-dark": companyTheme.accentDark,
-          "--surface-brand": companyTheme.surfaceTint,
-          "--manager-surface": companyTheme.panelSurface,
-          "--manager-dashboard-bg": companyTheme.dashboardBackgroundUrl
-            ? `url(${companyTheme.dashboardBackgroundUrl})`
-            : "none"
-        } as CSSProperties
-      }
-    >
-      <div className="manager-sticky-shell">
-        <div className="manager-dashboard-header">
-          <div className="manager-company">
-            <div className="manager-company-mark">
-              {companyTheme.logoImageUrl ? (
-                <Image
-                  alt={companyTheme.name}
-                  className="brand-upload-image manager-company-image"
-                  height={72}
-                  src={companyTheme.logoImageUrl}
-                  width={72}
-                />
-              ) : (
-                <span
-                  className="brand-badge manager-company-badge"
-                  style={{ background: `linear-gradient(135deg, ${companyTheme.accentDark}, ${companyTheme.accent})` }}
-                >
-                  {companyTheme.logoText}
-                </span>
-              )}
+    <div className="m-shell">
+      {/* ── TOP BAR ───────────────────────────────────────────── */}
+      <header className="m-topbar">
+        <div className="m-topbar-brand">
+          {companyTheme.logoImageUrl ? (
+            <Image alt={companyTheme.name} className="m-topbar-mark" height={30} src={companyTheme.logoImageUrl} width={30} style={{ objectFit: "cover" }} />
+          ) : (
+            <div className="m-topbar-mark">{logoMark}</div>
+          )}
+          <div>
+            <div className="m-topbar-name">{companyTheme.name}</div>
+            <div className="m-topbar-role">
+              {managerName} · {role === "superadmin" ? "Супер-админ" : role === "admin" ? "Администратор" : "Менеджер"}
             </div>
-            <div className="manager-company-copy">
-              <span className="card-label">Компания</span>
-              <h1>{companyTheme.name}</h1>
-              <p>
-                {managerName} · {role === "superadmin"
-                  ? "Супер-админ"
-                  : role === "admin"
-                    ? "Администратор компании"
-                    : "Менеджер объявлений"}
-              </p>
-            </div>
-          </div>
-          <div className="manager-summary-strip">
-            <span>{stats.listingsCount} объектов</span>
-            {role === "superadmin" ? (
-              <span>{companies.length} компаний</span>
-            ) : (
-              <>
-                <span>{stats.bookingsCount} заявок</span>
-                <span>{stats.newCount} новые</span>
-                <span>{stats.holdCount} hold</span>
-                <span>{stats.archivedCount} архив</span>
-              </>
-            )}
           </div>
         </div>
 
-        {role !== "superadmin" ? (
-          <div className="manager-ops-toolbar">
-            <div className="manager-ops-date">
-              <span className="card-label">Операционный день</span>
+        {role !== "superadmin" && (
+          <>
+            <div className="m-topbar-sep" />
+            <div className="m-topbar-date">
               <strong>{formatOperationalDate(operationalDate)}</strong>
             </div>
-            <label className="settings-field manager-ops-date-picker">
-              <span>Дата работы</span>
-              <input
-                className="manager-input"
-                min={getTodayIso()}
-                onChange={(event) => setOperationalDate(event.target.value)}
-                type="date"
-                value={operationalDate}
-              />
-            </label>
-            <div className="manager-day-kpis">
-              <span>{bookingsForOperationalDate.length} броней</span>
-              <span>{bookingsForOperationalDate.filter((item) => item.status === "confirmed").length} подтверждено</span>
-              <span>{activeWaitlistForOperationalDate.length} в ожидании</span>
-              <span>{remindersForOperationalDate.filter((item) => item.status === "pending").length} напоминаний</span>
+          </>
+        )}
+
+        {role !== "superadmin" && (
+          <div className="m-topbar-kpis">
+            <div className="m-topbar-kpi">
+              <span className="m-topbar-kpi-val gold">{stats.newCount}</span>
+              <span className="m-topbar-kpi-label">Новые</span>
+            </div>
+            <div className="m-topbar-kpi">
+              <span className={`m-topbar-kpi-val ${stats.holdCount > 0 ? "amber" : ""}`}>{stats.holdCount}</span>
+              <span className="m-topbar-kpi-label">Hold</span>
+            </div>
+            <div className="m-topbar-kpi">
+              <span className="m-topbar-kpi-val">{stats.bookingsCount}</span>
+              <span className="m-topbar-kpi-label">Заявок</span>
             </div>
           </div>
-        ) : null}
+        )}
 
-        {role === "superadmin" ? (
-          <div className="manager-superadmin-strip">
-            <div className="manager-note-box">
-              Управление клиентами, брендингом и пользователями собрано в одном центре, чтобы не прыгать по разным разделам.
-            </div>
-            <Link className="primary-button subtle-button" href="/manager/settings">
-              Открыть центр управления
-            </Link>
-          </div>
-        ) : null}
-      </div>
+        <div className="m-topbar-actions" style={{ marginLeft: role === "superadmin" ? "auto" : undefined }}>
+          <Link className="m-btn" href="/">↗ К витрине</Link>
+          <form action="/api/admin/logout" method="post">
+            <button className="m-btn" type="submit">↩ Выйти</button>
+          </form>
+        </div>
+      </header>
 
-      {notice ? (
-        <div className={`manager-system-notice toast toast-${notice.kind}`}>
-          <div className="manager-system-notice-copy">
-            <strong>{notice.kind === "error" ? "Нужно внимание" : notice.kind === "success" ? "Готово" : "Уведомление"}</strong>
-            <p>{notice.message}</p>
-          </div>
-          <div className="manager-system-notice-actions">
-            {notice.actionLabel && notice.targetTab ? (
-              <button
-                className="toolbar-button manager-notice-action"
-                onClick={() => {
-                  setActiveTab(notice.targetTab as DashboardTab);
-                  setNotice(null);
-                }}
-                type="button"
-              >
-                {notice.actionLabel}
-              </button>
-            ) : null}
-            <button
-              className="toolbar-button manager-notice-close"
-              onClick={() => setNotice(null)}
-              type="button"
-            >
-              Закрыть
-            </button>
+      {/* ── DATE BAR (non-superadmin) ─────────────────────────── */}
+      {role !== "superadmin" ? (
+        <div className="m-datebar">
+          <span className="m-datebar-label">Операционный день</span>
+          <input
+            className="m-datebar-input"
+            min={getTodayIso()}
+            onChange={(e) => setOperationalDate(e.target.value)}
+            type="date"
+            value={operationalDate}
+          />
+          <div className="m-datebar-stats">
+            <span className="m-datebar-stat"><strong>{bookingsForOperationalDate.length}</strong> броней</span>
+            <span className="m-datebar-stat"><strong>{bookingsForOperationalDate.filter((b) => b.status === "confirmed").length}</strong> подтверждено</span>
+            <span className="m-datebar-stat"><strong>{activeWaitlistForOperationalDate.length}</strong> в ожидании</span>
+            <span className="m-datebar-stat"><strong>{remindersForOperationalDate.filter((r) => r.status === "pending").length}</strong> напоминаний</span>
           </div>
         </div>
       ) : null}
 
-      {confirmState ? (
-        <div className="manager-confirm-backdrop" role="presentation">
-          <div className="manager-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="manager-confirm-title">
-            <div className="manager-confirm-copy">
-              <span className="card-label">Подтверждение</span>
-              <h2 id="manager-confirm-title">{confirmState.title}</h2>
-              <p>{confirmState.description}</p>
-            </div>
-            <div className="manager-confirm-actions">
-              <button
-                className="toolbar-button"
-                onClick={() => setConfirmState(null)}
-                type="button"
-              >
-                Отмена
+      {/* ── NOTICE TOAST ─────────────────────────────────────── */}
+      {notice ? (
+        <div className={`m-notice m-notice-${notice.kind}`}>
+          <div className="m-notice-copy">
+            <span className="m-notice-title">
+              {notice.kind === "error" ? "Нужно внимание" : notice.kind === "success" ? "Готово" : "Уведомление"}
+            </span>
+            <p className="m-notice-msg">{notice.message}</p>
+          </div>
+          <div className="m-notice-actions">
+            {notice.actionLabel && notice.targetTab ? (
+              <button className="m-btn" onClick={() => { setActiveTab(notice.targetTab as DashboardTab); setNotice(null); }} type="button">
+                {notice.actionLabel}
               </button>
+            ) : null}
+            <button className="m-btn" onClick={() => setNotice(null)} type="button">✕</button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── CONFIRM DIALOG ───────────────────────────────────── */}
+      {confirmState ? (
+        <div className="m-backdrop" role="presentation" onClick={() => setConfirmState(null)}>
+          <div className="m-dialog" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="m-dialog-head">
+              <div className="m-dialog-head-copy">
+                <span className="m-dialog-eyebrow">Подтверждение</span>
+                <h2 className="m-dialog-title">{confirmState.title}</h2>
+                <p className="m-dialog-desc">{confirmState.description}</p>
+              </div>
+            </div>
+            <div className="m-dialog-foot">
+              <button className="m-btn" onClick={() => setConfirmState(null)} type="button">Отмена</button>
               <button
-                className={`primary-button ${confirmState.tone === "danger" ? "danger-button" : ""}`}
+                className={`m-btn ${confirmState.tone === "danger" ? "m-btn-danger" : "m-btn-gold"}`}
                 onClick={confirmState.onConfirm}
                 type="button"
               >
@@ -1199,115 +634,67 @@ export function ManagerDashboard({
         </div>
       ) : null}
 
-      {selectedBookingDetail ? (
-        <div className="manager-detail-backdrop" role="presentation">
-          {(() => {
-            const detailStatusMeta = getBookingStatusMeta(selectedBookingDetail);
-
-            return (
-          <div
-            aria-labelledby="manager-detail-title"
-            aria-modal="true"
-            className="manager-detail-dialog"
-            role="dialog"
-          >
-            <div className="manager-detail-head">
-              <div className="manager-detail-head-copy">
-                <span className="card-label">Карточка заявки</span>
-                <h2 id="manager-detail-title">{selectedBookingDetail.customerName}</h2>
-                <p>{selectedBookingDetail.venueName}</p>
-              </div>
-              <div className="manager-detail-head-actions">
-                <span className={`manager-status-badge status-${detailStatusMeta.tone} manager-detail-status-chip`}>
-                  {detailStatusMeta.shortLabel}
-                </span>
-                <button
-                  className="toolbar-button"
-                  onClick={() => setSelectedBookingId(null)}
-                  type="button"
-                >
-                  <span className="manager-button-icon" aria-hidden="true">✕</span>
-                  <span>Закрыть</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="manager-detail-body">
-              <div className="manager-detail-section manager-detail-summary">
-                <div className="manager-meta-row">
-                  <span className="fact">{selectedBookingDetail.placeLabel}</span>
-                  {selectedBookingDetail.slotLabel ? (
-                    <span className="fact">{selectedBookingDetail.slotLabel}</span>
-                  ) : null}
-                  <span className="fact">{selectedBookingDetail.dateLabel}</span>
-                  <span className="fact">{selectedBookingDetail.guestsLabel}</span>
+      {/* ── BOOKING DETAIL DIALOG ────────────────────────────── */}
+      {selectedBookingDetail ? (() => {
+        const meta = getBookingStatusMeta(selectedBookingDetail);
+        return (
+          <div className="m-backdrop" role="presentation" onClick={() => setSelectedBookingId(null)}>
+            <div className="m-dialog m-dialog-lg" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <div className="m-dialog-head">
+                <div className="m-dialog-head-copy">
+                  <span className="m-dialog-eyebrow">Карточка заявки</span>
+                  <h2 className="m-dialog-title">{selectedBookingDetail.customerName}</h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                    <span className={`m-status m-status-${meta.tone}`}>{meta.shortLabel}</span>
+                    <span style={{ fontSize: 12, color: "var(--s-muted)" }}>{selectedBookingDetail.venueName}</span>
+                  </div>
                 </div>
+                <button className="m-btn" onClick={() => setSelectedBookingId(null)} type="button">✕</button>
               </div>
 
-              <div className="manager-detail-grid">
-                <div className="manager-detail-section">
-                  <span className="card-label">Контакты</span>
-                  <strong>{selectedBookingDetail.phone}</strong>
-                  {selectedBookingDetail.telegram ? <p>{selectedBookingDetail.telegram}</p> : null}
+              <div className="m-dialog-body">
+                <div className="m-detail-row">
+                  <span className="m-detail-fact">{selectedBookingDetail.placeLabel}</span>
+                  {selectedBookingDetail.slotLabel ? <span className="m-detail-fact">{selectedBookingDetail.slotLabel}</span> : null}
+                  <span className="m-detail-fact">{selectedBookingDetail.dateLabel}</span>
+                  <span className="m-detail-fact">{selectedBookingDetail.guestsLabel}</span>
                 </div>
-                <div className="manager-detail-section">
-                  <span className="card-label">Детали</span>
-                  <p>{selectedBookingDetail.amountLabel}</p>
-                  <p>{selectedBookingDetail.sourceLabel}</p>
-                </div>
-              </div>
 
-              <div className="manager-note-box">{selectedBookingDetail.managerNote}</div>
+                <div className="m-detail-grid">
+                  <div className="m-detail-section">
+                    <span className="m-detail-label">Контакты</span>
+                    <span className="m-detail-value">{selectedBookingDetail.phone}</span>
+                    {selectedBookingDetail.telegram ? <span className="m-detail-sub">{selectedBookingDetail.telegram}</span> : null}
+                  </div>
+                  <div className="m-detail-section">
+                    <span className="m-detail-label">Детали</span>
+                    <span className="m-detail-value">{selectedBookingDetail.amountLabel}</span>
+                    <span className="m-detail-sub">{selectedBookingDetail.sourceLabel}</span>
+                  </div>
+                </div>
 
-              <div className="manager-detail-actions-shell">
-                <div className="manager-detail-action-block">
-                  <span className="card-label">Связь</span>
-                  <div className="manager-action-cluster">
-                  <a
-                    aria-label="Позвонить"
-                    className="toolbar-button manager-quick-contact"
-                    href={`tel:${slugifyPhone(selectedBookingDetail.phone)}`}
-                    title="Позвонить"
-                  >
-                    <span className="manager-button-icon" aria-hidden="true"><PhoneIcon /></span>
-                  </a>
-                  <a
-                    aria-label="Связаться в Telegram"
-                    className="toolbar-button manager-quick-contact"
-                    href={SUPPORT_TELEGRAM_URL}
-                    rel="noreferrer"
-                    target="_blank"
-                    title="Связаться в Telegram"
-                  >
-                    <span className="manager-button-icon" aria-hidden="true"><TelegramIcon /></span>
-                  </a>
-                  {selectedBookingDetail.telegram ? (
-                    <a
-                      aria-label="Открыть Telegram клиента"
-                      className="toolbar-button manager-quick-contact"
-                      href={`https://t.me/${selectedBookingDetail.telegram.replace("@", "")}`}
-                      rel="noreferrer"
-                      target="_blank"
-                      title="Открыть Telegram клиента"
-                    >
-                      <span className="manager-button-icon" aria-hidden="true"><TelegramIcon /></span>
-                    </a>
-                  ) : null}
+                <div className="m-note">{selectedBookingDetail.managerNote}</div>
+
+                <div className="m-detail-section">
+                  <span className="m-detail-label">Связь</span>
+                  <div className="m-detail-actions" style={{ marginTop: 4 }}>
+                    <a aria-label="Позвонить" className="m-contact-btn" href={`tel:${slugifyPhone(selectedBookingDetail.phone)}`} title="Позвонить"><PhoneIcon /></a>
+                    <a aria-label="Telegram поддержки" className="m-contact-btn" href={SUPPORT_TELEGRAM_URL} rel="noreferrer" target="_blank"><TelegramIcon /></a>
+                    {selectedBookingDetail.telegram ? (
+                      <a aria-label="Telegram клиента" className="m-contact-btn" href={`https://t.me/${selectedBookingDetail.telegram.replace("@", "")}`} rel="noreferrer" target="_blank"><TelegramIcon /></a>
+                    ) : null}
+                  </div>
                 </div>
-                </div>
+
                 {!selectedBookingDetail.archived ? (
-                  <div className="manager-detail-action-block">
-                    <span className="card-label">Изменить статус</span>
-                    <div className="manager-action-cluster manager-detail-action-group">
+                  <div className="m-detail-section">
+                    <span className="m-detail-label">Изменить статус</span>
+                    <div className="m-detail-actions" style={{ marginTop: 4 }}>
                       {statusActions[selectedBookingDetail.status].map((action) => (
                         <button
-                          className={`toolbar-button ${action === "confirm" ? "manager-action-positive" : ""} ${action === "cancel" || action === "decline" ? "manager-action-danger" : ""}`}
-                          disabled={isPending}
-                          key={action}
-                          onClick={() => {
-                            setSelectedBookingId(null);
-                            handleAction(selectedBookingDetail.id, action);
-                          }}
+                          className={`m-btn ${action === "confirm" ? "m-btn-positive" : action === "cancel" || action === "decline" ? "m-btn-danger" : ""}`}
+                          disabled={isPending} key={action}
+                          onClick={() => { setSelectedBookingId(null); handleAction(selectedBookingDetail.id, action); }}
                           type="button"
                         >
                           {actionLabels[action]}
@@ -1316,547 +703,387 @@ export function ManagerDashboard({
                     </div>
                   </div>
                 ) : null}
-                <div className="manager-detail-action-block">
-                  <span className="card-label">{selectedBookingDetail.archived ? "Вернуть в работу" : "Архив"}</span>
-                  <div className="manager-action-cluster manager-detail-action-group">
+
+                <div className="m-detail-section">
+                  <span className="m-detail-label">{selectedBookingDetail.archived ? "Вернуть в работу" : "Архив"}</span>
+                  <div className="m-detail-actions" style={{ marginTop: 4 }}>
                     <button
-                      className="toolbar-button"
-                      disabled={isPending}
-                      onClick={() => {
-                        setSelectedBookingId(null);
-                        handleAction(
-                          selectedBookingDetail.id,
-                          selectedBookingDetail.archived ? "restore" : "archive"
-                        );
-                      }}
+                      className="m-btn" disabled={isPending}
+                      onClick={() => { setSelectedBookingId(null); handleAction(selectedBookingDetail.id, selectedBookingDetail.archived ? "restore" : "archive"); }}
                       type="button"
                     >
-                      <span className="manager-button-icon" aria-hidden="true">
-                        {selectedBookingDetail.archived ? "↺" : "🗂"}
-                      </span>
-                      <span>{selectedBookingDetail.archived ? "Вернуть в работу" : "Архивировать"}</span>
+                      {selectedBookingDetail.archived ? "↺ Вернуть в работу" : "Архивировать"}
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-            );
-          })()}
-        </div>
-      ) : null}
+        );
+      })() : null}
 
-      {role === "superadmin" ? (
-        <div className="manager-table-shell compact-manager-shell manager-table-shell-wide">
-          <div className="manager-table-head compact-manager-head">
-            <div>
-              <span className="card-label">Все точки</span>
-              <h2>Список всех объектов на платформе</h2>
-            </div>
-            <div className="manager-inline-pagination">
+      {/* ── BODY ─────────────────────────────────────────────── */}
+      <div className="m-body">
+        {/* Sidebar — non-superadmin only */}
+        {role !== "superadmin" ? (
+          <nav className="m-sidebar">
+            {([
+              { key: "overview", icon: "⌂", label: "Объект" },
+              { key: "bookings", icon: "▥", label: "Заявки", badge: stats.newCount > 0 ? String(stats.newCount) : undefined, badgeTone: "gold" },
+              { key: "archive", icon: "◫", label: "Архив" },
+              { key: "manual", icon: "＋", label: "Запись" },
+              { key: "waitlist", icon: "◷", label: "Ожидание", badge: activeWaitlistForOperationalDate.length > 0 ? String(activeWaitlistForOperationalDate.length) : undefined, badgeTone: "amber" },
+              { key: "reminders", icon: "◎", label: "Уведомления", badge: remindersForOperationalDate.filter((r) => r.status === "pending").length > 0 ? String(remindersForOperationalDate.filter((r) => r.status === "pending").length) : undefined }
+            ] as const).map((tab) => (
               <button
-                className="toolbar-button"
-                disabled={superadminPage <= 1}
-                onClick={() => setSuperadminPage((current) => Math.max(1, current - 1))}
+                className={`m-sidebar-tab ${activeTab === tab.key ? "active" : ""}`}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as DashboardTab)}
                 type="button"
               >
-                Назад
+                <span className="m-sidebar-icon">{tab.icon}</span>
+                <span>{tab.label}</span>
+                {"badge" in tab && tab.badge ? (
+                  <span className={`m-sidebar-badge ${"badgeTone" in tab ? tab.badgeTone : ""}`}>{tab.badge}</span>
+                ) : null}
               </button>
-              <span>
-                {superadminPage} / {superadminPageCount}
-              </span>
-              <button
-                className="toolbar-button"
-                disabled={superadminPage >= superadminPageCount}
-                onClick={() => setSuperadminPage((current) => Math.min(superadminPageCount, current + 1))}
-                type="button"
-              >
-                Дальше
-              </button>
-            </div>
-          </div>
-
-          <div className="manager-listing-grid manager-listing-grid-wide">
-            {pagedListings.map((listing) => (
-              <article className="manager-listing-card" key={listing.id}>
-                <strong>{listing.name}</strong>
-                <span className="fact">{companies.find((company) => company.id === listing.companyId)?.name || listing.companyId}</span>
-                <span className="result-vertical-chip">{listing.type}</span>
-                <p>{listing.city}</p>
-                <div className="manager-meta-row">
-                  <span className="fact">{listing.price}</span>
-                  <span className={`status-badge status-${listing.availability}`}>
-                    {listing.availability === "available"
-                      ? "Свободно"
-                      : listing.availability === "limited"
-                        ? "Мало мест"
-                        : "Почти занято"}
-                  </span>
-                </div>
-                <Link className="manager-edit-link" href={`/manager/listings/${listing.id}`}>
-                  {role === "superadmin" ? "Редактировать 360 и метки" : "Редактировать информацию"}
-                </Link>
-              </article>
             ))}
-          </div>
-        </div>
-      ) : (
-        <div className="manager-workspace-shell">
-          <div className="manager-workspace-tabs">
-            <button
-              className={`workspace-tab ${activeTab === "overview" ? "active" : ""}`}
-              onClick={() => setActiveTab("overview")}
-              type="button"
-            >
-              <span className="manager-button-icon" aria-hidden="true">⌂</span>
-              <span>Объект</span>
-            </button>
-            <button
-              className={`workspace-tab ${activeTab === "bookings" ? "active" : ""}`}
-              onClick={() => setActiveTab("bookings")}
-              type="button"
-            >
-              <span className="manager-button-icon" aria-hidden="true">▥</span>
-              <span>Заявки</span>
-            </button>
-            <button
-              className={`workspace-tab ${activeTab === "archive" ? "active" : ""}`}
-              onClick={() => setActiveTab("archive")}
-              type="button"
-            >
-              <span className="manager-button-icon" aria-hidden="true">🗂</span>
-              <span>Архив</span>
-            </button>
-            <button
-              className={`workspace-tab ${activeTab === "manual" ? "active" : ""}`}
-              onClick={() => setActiveTab("manual")}
-              type="button"
-            >
-              <span className="manager-button-icon" aria-hidden="true">＋</span>
-              <span>Запись</span>
-            </button>
-            <button
-              className={`workspace-tab ${activeTab === "waitlist" ? "active" : ""}`}
-              onClick={() => setActiveTab("waitlist")}
-              type="button"
-            >
-              <span className="manager-button-icon" aria-hidden="true">◷</span>
-              <span>Лист ожидания</span>
-            </button>
-            <button
-              className={`workspace-tab ${activeTab === "reminders" ? "active" : ""}`}
-              onClick={() => setActiveTab("reminders")}
-              type="button"
-            >
-              <span className="manager-button-icon" aria-hidden="true">🔔</span>
-              <span>Уведомления</span>
-            </button>
-          </div>
 
-          {activeTab === "overview" ? (
-            <div className="manager-table-shell compact-manager-shell">
-              <div className="manager-table-head compact-manager-head">
+            <div className="m-sidebar-divider" />
+
+            <Link className="m-sidebar-tab" href={listings[0] ? `/manager/listings/${listings[0].id}` : "/manager"}>
+              <span className="m-sidebar-icon">✎</span>
+              <span>Редактировать</span>
+            </Link>
+          </nav>
+        ) : null}
+
+        {/* ── MAIN CONTENT ───────────────────────────────────── */}
+        <main className="m-content">
+
+          {/* ── SUPERADMIN VIEW ──────────────────────────────── */}
+          {role === "superadmin" ? (
+            <>
+              <div className="m-section-head">
                 <div>
-                  <span className="card-label">Объект менеджера</span>
-                  <h2>{listings[0]?.name || "Объект не найден"}</h2>
+                  <div className="m-eyebrow">Платформа</div>
+                  <h1 className="m-section-title">Все объекты · {listings.length} записей</h1>
+                </div>
+                <div className="m-section-actions">
+                  <div className="m-pagination">
+                    <button className="m-btn" disabled={superadminPage <= 1} onClick={() => setSuperadminPage((p) => Math.max(1, p - 1))} type="button">← Назад</button>
+                    <span className="m-pagination-info">{superadminPage} / {superadminPageCount}</span>
+                    <button className="m-btn" disabled={superadminPage >= superadminPageCount} onClick={() => setSuperadminPage((p) => Math.min(superadminPageCount, p + 1))} type="button">Дальше →</button>
+                  </div>
+                  <Link className="m-btn m-btn-gold" href="/manager/settings">Центр управления →</Link>
+                </div>
+              </div>
+
+              <div className="m-admin-grid">
+                {pagedListings.map((listing) => (
+                  <article className="m-admin-card" key={listing.id}>
+                    <span className="m-admin-card-type">{listing.type}</span>
+                    <span className="m-admin-card-name">{listing.name}</span>
+                    <span className="m-admin-card-company">{companies.find((c) => c.id === listing.companyId)?.name || listing.companyId}</span>
+                    <span style={{ fontSize: 11, color: "var(--s-muted)" }}>{listing.city}</span>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
+                      <span style={{ fontSize: 12, color: "var(--s-text)" }}>{listing.price}</span>
+                      <span className={`m-status m-status-${listing.availability === "available" ? "confirmed" : listing.availability === "limited" ? "hold" : "waitlist"}`}>
+                        {listing.availability === "available" ? "Свободно" : listing.availability === "limited" ? "Мало мест" : "Почти занято"}
+                      </span>
+                    </div>
+                    <Link className="m-btn" href={`/manager/listings/${listing.id}`} style={{ marginTop: 8, display: "inline-flex" }}>
+                      Редактировать →
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : null}
+
+          {/* ── OVERVIEW TAB ─────────────────────────────────── */}
+          {role !== "superadmin" && activeTab === "overview" ? (
+            <>
+              <div className="m-section-head">
+                <div>
+                  <div className="m-eyebrow">Объект менеджера</div>
+                  <h1 className="m-section-title">{listings[0]?.name || "Объект не найден"}</h1>
                 </div>
               </div>
 
               {listings[0] ? (
-                <div className="manager-overview-grid">
-                  <article className="manager-listing-card manager-listing-card-featured">
-                    <strong>{listings[0].name}</strong>
-                    <span className="result-vertical-chip">{listings[0].type}</span>
-                    <p>{listings[0].city}</p>
-                    <div className="manager-meta-row">
-                      <span className="fact">{listings[0].price}</span>
-                      <span className={`status-badge status-${listings[0].availability}`}>
-                        {listings[0].availability === "available"
-                          ? "Свободно"
-                          : listings[0].availability === "limited"
-                            ? "Мало мест"
-                            : "Почти занято"}
-                      </span>
-                    </div>
-                    <div className="manager-summary-strip manager-summary-strip-inline">
-                      <span>{stats.bookingsCount} заявок</span>
-                      <span>{stats.newCount} новые</span>
-                      <span>{stats.holdCount} hold</span>
-                    </div>
-                    <Link className="manager-edit-link" href={`/manager/listings/${listings[0].id}`}>
-                      Редактировать информацию
-                    </Link>
-                  </article>
-
-                  <div className="manager-day-focus-grid">
-                    <article className="manager-focus-card">
-                      <span className="card-label">Следующая бронь</span>
-                      {nextUpcomingBooking ? (
-                        <>
-                          <strong>{nextUpcomingBooking.customerName}</strong>
-                          <p>{nextUpcomingBooking.placeLabel} · {formatTime(nextUpcomingBooking.startTimeRaw)}</p>
-                          <div className="manager-inline-actions">
-                            <a
-                              aria-label="Позвонить"
-                              className="toolbar-button manager-quick-contact"
-                              href={`tel:${slugifyPhone(nextUpcomingBooking.phone)}`}
-                              title="Позвонить"
-                            >
-                              <span className="manager-button-icon" aria-hidden="true"><PhoneIcon /></span>
-                            </a>
-                            <a
-                              aria-label="Связаться в Telegram"
-                              className="toolbar-button manager-quick-contact"
-                              href={SUPPORT_TELEGRAM_URL}
-                              rel="noreferrer"
-                              target="_blank"
-                              title="Связаться в Telegram"
-                            >
-                              <span className="manager-button-icon" aria-hidden="true"><TelegramIcon /></span>
-                            </a>
-                            {nextUpcomingBooking.telegram ? (
-                              <a
-                                aria-label="Открыть Telegram клиента"
-                                className="toolbar-button manager-quick-contact"
-                                href={`https://t.me/${nextUpcomingBooking.telegram.replace("@", "")}`}
-                                rel="noreferrer"
-                                target="_blank"
-                                title="Открыть Telegram клиента"
-                              >
-                                <span className="manager-button-icon" aria-hidden="true"><TelegramIcon /></span>
-                              </a>
-                            ) : null}
-                          </div>
-                        </>
-                      ) : (
-                        <p>На выбранную дату активных броней пока нет.</p>
-                      )}
-                    </article>
-
-                    <article className="manager-focus-card">
-                      <span className="card-label">Что требует внимания</span>
-                      <div className="manager-attention-list">
-                        {attentionItems.map((item) => (
-                          <div className="manager-attention-item" key={item.id}>
-                            <strong>{item.label}</strong>
-                            <p>{item.description}</p>
-                          </div>
-                        ))}
+                <>
+                  <div className="m-overview-grid">
+                    <div className="m-listing-panel">
+                      <span className="m-admin-card-type">{listings[0].type}</span>
+                      <p className="m-listing-name">{listings[0].name}</p>
+                      <span className="m-listing-meta">{listings[0].city}</span>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <span className={`m-status m-status-${listings[0].availability === "available" ? "confirmed" : listings[0].availability === "limited" ? "hold" : "waitlist"}`}>
+                          {listings[0].availability === "available" ? "Свободно" : listings[0].availability === "limited" ? "Мало мест" : "Почти занято"}
+                        </span>
+                        <span className="m-listing-meta">{listings[0].price}</span>
                       </div>
-                    </article>
+                      <div className="m-listing-stats">
+                        <div className="m-listing-stat">
+                          <span className="m-listing-stat-val">{stats.bookingsCount}</span>
+                          <span className="m-listing-stat-label">Заявок</span>
+                        </div>
+                        <div className="m-listing-stat">
+                          <span className="m-listing-stat-val" style={{ color: "var(--s-gold-lt)" }}>{stats.newCount}</span>
+                          <span className="m-listing-stat-label">Новые</span>
+                        </div>
+                        <div className="m-listing-stat">
+                          <span className="m-listing-stat-val" style={{ color: stats.holdCount > 0 ? "var(--s-amber)" : undefined }}>{stats.holdCount}</span>
+                          <span className="m-listing-stat-label">Hold</span>
+                        </div>
+                      </div>
+                      <Link className="m-btn m-btn-gold" href={`/manager/listings/${listings[0].id}`} style={{ marginTop: 8 }}>
+                        Редактировать объект →
+                      </Link>
+                    </div>
 
-                    <article className="manager-focus-card">
-                      <span className="card-label">Очередь ожидания</span>
-                      {priorityWaitlistEntry ? (
-                        <>
-                          <strong>{priorityWaitlistEntry.customerName}</strong>
-                          <p>
-                            {priorityWaitlistEntry.status === "contacted"
-                              ? "Ждем итог после звонка"
-                              : "Нужно позвонить первому клиенту"}
-                          </p>
-                          <p>{priorityWaitlistEntry.hotspotLabel}</p>
-                          <span className={`manager-status-badge status-${priorityWaitlistEntry.status}`}>
-                            {priorityWaitlistEntry.status === "contacted" ? "Связались, ждем итог" : "Ждет первого контакта"}
-                          </span>
-                          <div className="manager-focus-actions">
-                            <div className="manager-inline-actions manager-inline-actions-icons">
-                              <a
-                                aria-label="Позвонить"
-                                className="toolbar-button manager-quick-contact"
-                                href={`tel:${slugifyPhone(priorityWaitlistEntry.customerPhone)}`}
-                                title="Позвонить"
-                              >
-                                <span className="manager-button-icon" aria-hidden="true"><PhoneIcon /></span>
-                              </a>
-                              <a
-                                aria-label="Связаться в Telegram"
-                                className="toolbar-button manager-quick-contact"
-                                href={SUPPORT_TELEGRAM_URL}
-                                rel="noreferrer"
-                                target="_blank"
-                                title="Связаться в Telegram"
-                              >
-                                <span className="manager-button-icon" aria-hidden="true"><TelegramIcon /></span>
-                              </a>
-                              {priorityWaitlistEntry.customerTelegram ? (
-                                <a
-                                  aria-label="Открыть Telegram клиента"
-                                  className="toolbar-button manager-quick-contact"
-                                  href={`https://t.me/${priorityWaitlistEntry.customerTelegram.replace("@", "")}`}
-                                  rel="noreferrer"
-                                  target="_blank"
-                                  title="Открыть Telegram клиента"
-                                >
-                                  <span className="manager-button-icon" aria-hidden="true"><TelegramIcon /></span>
-                                </a>
+                    <div className="m-focus-grid">
+                      {/* Next booking */}
+                      <div className="m-focus-card">
+                        <span className="m-focus-eyebrow">Следующая бронь</span>
+                        {nextUpcomingBooking ? (
+                          <>
+                            <span className="m-focus-name">{nextUpcomingBooking.customerName}</span>
+                            <p className="m-focus-sub">{nextUpcomingBooking.placeLabel} · {formatTime(nextUpcomingBooking.startTimeRaw)}</p>
+                            <div className="m-focus-actions">
+                              <a className="m-contact-btn" href={`tel:${slugifyPhone(nextUpcomingBooking.phone)}`}><PhoneIcon /></a>
+                              <a className="m-contact-btn" href={SUPPORT_TELEGRAM_URL} rel="noreferrer" target="_blank"><TelegramIcon /></a>
+                              {nextUpcomingBooking.telegram ? (
+                                <a className="m-contact-btn" href={`https://t.me/${nextUpcomingBooking.telegram.replace("@", "")}`} rel="noreferrer" target="_blank"><TelegramIcon /></a>
                               ) : null}
                             </div>
-                            <div className="manager-inline-actions manager-inline-actions-text">
-                              <button
-                                className="toolbar-button"
-                                disabled={isPending}
-                                onClick={() => handleWaitlistOffer(priorityWaitlistEntry.id)}
-                                type="button"
-                              >
-                                {priorityWaitlistEntry.status === "contacted" ? "Позвонить еще раз" : "Позвонил"}
+                          </>
+                        ) : (
+                          <p className="m-focus-sub">На выбранную дату активных броней пока нет.</p>
+                        )}
+                      </div>
+
+                      {/* Attention */}
+                      <div className="m-focus-card">
+                        <span className="m-focus-eyebrow">Требует внимания</span>
+                        <div className="m-attention-list">
+                          {attentionItems.map((item) => (
+                            <div className="m-attention-item" key={item.id}>
+                              <span className="m-attention-label">{item.label}</span>
+                              <p className="m-attention-desc">{item.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Waitlist */}
+                      <div className="m-focus-card">
+                        <span className="m-focus-eyebrow">Очередь ожидания</span>
+                        {priorityWaitlistEntry ? (
+                          <>
+                            <span className="m-focus-name">{priorityWaitlistEntry.customerName}</span>
+                            <span className={`m-status m-status-${priorityWaitlistEntry.status === "contacted" ? "contacted" : "active"}`}>
+                              {priorityWaitlistEntry.status === "contacted" ? "Связались, ждем итог" : "Ждет первого контакта"}
+                            </span>
+                            <p className="m-focus-sub">{priorityWaitlistEntry.hotspotLabel}</p>
+                            <div className="m-focus-actions">
+                              <a className="m-contact-btn" href={`tel:${slugifyPhone(priorityWaitlistEntry.customerPhone)}`}><PhoneIcon /></a>
+                              <a className="m-contact-btn" href={SUPPORT_TELEGRAM_URL} rel="noreferrer" target="_blank"><TelegramIcon /></a>
+                              {priorityWaitlistEntry.customerTelegram ? (
+                                <a className="m-contact-btn" href={`https://t.me/${priorityWaitlistEntry.customerTelegram.replace("@", "")}`} rel="noreferrer" target="_blank"><TelegramIcon /></a>
+                              ) : null}
+                              <button className="m-btn" disabled={isPending} onClick={() => handleWaitlistOffer(priorityWaitlistEntry.id)} type="button">
+                                {priorityWaitlistEntry.status === "contacted" ? "Позвонить ещё" : "Позвонил"}
                               </button>
                               {priorityWaitlistEntry.status === "contacted" ? (
-                                <button
-                                  className="toolbar-button"
-                                  disabled={isPending}
-                                  onClick={() => handleWaitlistResponded(priorityWaitlistEntry.id)}
-                                  type="button"
-                                >
-                                  Ответил
-                                </button>
+                                <>
+                                  <button className="m-btn m-btn-positive" disabled={isPending} onClick={() => handleWaitlistResponded(priorityWaitlistEntry.id)} type="button">Ответил</button>
+                                  <button className="m-btn m-btn-danger" disabled={isPending} onClick={() => handleWaitlistNoResponse(priorityWaitlistEntry.id)} type="button">Не ответил</button>
+                                </>
                               ) : null}
                             </div>
-                          </div>
-                        </>
-                      ) : (
-                        <p>Лист ожидания на эту дату пуст.</p>
-                      )}
-                    </article>
-                  </div>
-
-                  <div className="manager-occupancy-card">
-                    <div className="manager-table-head compact-manager-head">
-                      <div>
-                        <span className="card-label">Загрузка по точкам</span>
-                        <h2>Схема дня по столам и зонам</h2>
+                          </>
+                        ) : (
+                          <p className="m-focus-sub">Лист ожидания на эту дату пуст.</p>
+                        )}
                       </div>
                     </div>
-                    <div className="manager-occupancy-grid">
-                      <div className="manager-occupancy-header">
-                        <span>Точка</span>
-                        {operationalTimeline.map((slot) => (
-                          <span key={slot}>{slot}</span>
+                  </div>
+
+                  {/* Occupancy */}
+                  {occupancyRows.length > 0 ? (
+                    <>
+                      <div className="m-section-head" style={{ marginTop: 32 }}>
+                        <div>
+                          <div className="m-eyebrow">Загрузка</div>
+                          <h2 className="m-section-title">Схема дня по столам и зонам</h2>
+                        </div>
+                      </div>
+                      <div className="m-occupancy">
+                        <div className="m-occupancy-head">
+                          <span className="m-occupancy-head-label">Точка</span>
+                          <div className="m-occupancy-head-slots">
+                            {operationalTimeline.map((slot) => (
+                              <span className="m-occupancy-head-slot" key={slot}>{slot}</span>
+                            ))}
+                          </div>
+                        </div>
+                        {occupancyRows.map((row) => (
+                          <div className="m-occupancy-row" key={row.point.id}>
+                            <span className="m-occupancy-row-label">{row.point.label}</span>
+                            <div className="m-occupancy-cells">
+                              {operationalTimeline.map((slot) => {
+                                const busy = row.occupiedSlots.has(slot);
+                                return (
+                                  <button
+                                    className={`m-occupancy-cell ${busy ? "busy" : "free"}`}
+                                    disabled={busy}
+                                    key={`${row.point.id}-${slot}`}
+                                    onClick={() => {
+                                      if (busy) return;
+                                      setSelectedHotspotId(row.point.id);
+                                      setSelectedSceneId(manualScenes.find((s) => s.title === row.point.sceneTitle)?.id || selectedSceneId);
+                                      setManualDate(operationalDate);
+                                      setPendingManualTime(slot);
+                                      setManualTime(slot);
+                                      setActiveTab("manual");
+                                    }}
+                                    type="button"
+                                  >
+                                    {busy ? "Занят" : "Своб."}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         ))}
                       </div>
-                      {occupancyRows.map((row) => (
-                        <div className="manager-occupancy-row" key={row.point.id}>
-                          <strong>{row.point.label}</strong>
-                          {operationalTimeline.map((slot) => {
-                            const busy = row.occupiedSlots.has(slot);
-                            const isClickable = !busy;
-                            return (
-                              <button
-                                className={`manager-occupancy-cell ${busy ? "busy" : "free"}`}
-                                disabled={!isClickable}
-                                key={`${row.point.id}-${slot}`}
-                                onClick={() => {
-                                  if (!isClickable) {
-                                    return;
-                                  }
-
-                                  setSelectedHotspotId(row.point.id);
-                                  setSelectedSceneId(
-                                    manualScenes.find((scene) => scene.title === row.point.sceneTitle)?.id ||
-                                      selectedSceneId
-                                  );
-                                  setManualDate(operationalDate);
-                                  setPendingManualTime(slot);
-                                  setManualTime(slot);
-                                  setActiveTab("manual");
-                                }}
-                                type="button"
-                              >
-                                {busy ? "Занят" : "Свободен"}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                    </>
+                  ) : null}
+                </>
               ) : (
-                <div className="manager-note-box">За вами пока не закреплен объект.</div>
+                <div className="m-note">За вами пока не закреплен объект.</div>
               )}
-            </div>
+            </>
           ) : null}
 
-          {activeTab === "bookings" ? (
-            <div className="manager-table-shell compact-manager-shell">
-            <div className="manager-table-head compact-manager-head">
-              <div>
-                <span className="card-label">Мои заявки</span>
-                <h2>
-                  {role === "manager" ? "Только назначенные вам заявки" : "Все заявки компании"}
-                </h2>
+          {/* ── BOOKINGS KANBAN ──────────────────────────────── */}
+          {role !== "superadmin" && activeTab === "bookings" ? (
+            <>
+              <div className="m-section-head">
+                <div>
+                  <div className="m-eyebrow">Мои заявки</div>
+                  <h1 className="m-section-title">{role === "manager" ? "Только назначенные вам" : "Все заявки компании"}</h1>
+                </div>
               </div>
-            </div>
-
-            <div className="manager-note-box manager-kanban-hint">
-              Перетаскивай карточки между колонками, чтобы менять этап заявки без лишних кнопок.
-            </div>
-
-            <div className="manager-kanban-board">
-              {bookingBoard.map((column) => (
-                <section
-                  className={`manager-kanban-column ${dragOverColumn === column.key ? "drag-over" : ""}`}
-                  key={column.key}
-                  onDragOver={(event) => {
-                    if (column.key === "waitlist_entries") {
-                      return;
-                    }
-                    event.preventDefault();
-                    setDragOverColumn(column.key);
-                  }}
-                  onDragLeave={() => setDragOverColumn((current) => (current === column.key ? null : current))}
-                  onDrop={(event) => {
-                    if (column.key === "waitlist_entries") {
-                      setDragOverColumn(null);
-                      setDraggedBookingId(null);
-                      return;
-                    }
-                    event.preventDefault();
-                    const booking = bookingsForOperationalDate.find((item) => item.id === draggedBookingId);
-                    setDragOverColumn(null);
-                    setDraggedBookingId(null);
-
-                    if (!booking) {
-                      return;
-                    }
-
-                    handleBoardMove(booking, column.key);
-                  }}
-                >
-                  <div className="manager-kanban-column-head">
-                    <div>
-                      <strong>{column.title}</strong>
-                      <span>{column.hint}</span>
+              <div className="m-note" style={{ marginBottom: 16 }}>
+                Перетаскивай карточки между колонками, чтобы менять этап заявки без лишних кнопок.
+              </div>
+              <div className="m-kanban">
+                {bookingBoard.map((column) => (
+                  <section
+                    className={`m-kanban-col ${dragOverColumn === column.key ? "drag-over" : ""}`}
+                    key={column.key}
+                    onDragLeave={() => setDragOverColumn((c) => (c === column.key ? null : c))}
+                    onDragOver={(e) => { if (column.key === "waitlist_entries") return; e.preventDefault(); setDragOverColumn(column.key); }}
+                    onDrop={(e) => {
+                      if (column.key === "waitlist_entries") { setDragOverColumn(null); setDraggedBookingId(null); return; }
+                      e.preventDefault();
+                      const booking = bookingsForOperationalDate.find((b) => b.id === draggedBookingId);
+                      setDragOverColumn(null); setDraggedBookingId(null);
+                      if (booking) handleBoardMove(booking, column.key);
+                    }}
+                  >
+                    <div className="m-kanban-col-head">
+                      <div>
+                        <span className="m-kanban-col-title">{column.title}</span>
+                        <span className="m-kanban-col-hint">{column.hint}</span>
+                      </div>
+                      <span className="m-kanban-col-count">{column.items.length}</span>
                     </div>
-                    <span className="manager-kanban-count">{column.items.length}</span>
-                  </div>
 
-                  <div className="manager-kanban-list">
-                    {column.items.length === 0 ? (
-                      <div className="manager-kanban-empty">Пусто</div>
-                    ) : null}
+                    <div className="m-kanban-list">
+                      {column.items.length === 0 ? <div className="m-kanban-empty">Пусто</div> : null}
+                      {column.items.map((item) => {
+                        if (item.kind === "waitlist") {
+                          const meta = getWaitlistEntryMeta(item.entry);
+                          return (
+                            <article className="m-booking-card" key={item.id} onClick={() => setActiveTab("waitlist")}>
+                              <div className="m-booking-card-top">
+                                <span className={`m-status m-status-${meta.tone}`}>{meta.shortLabel}</span>
+                                <span className="m-booking-card-name">{item.entry.customerName}</span>
+                              </div>
+                              <div className="m-booking-card-info">
+                                <div className="m-booking-card-row">
+                                  <span className="m-booking-card-lbl">Стол</span>
+                                  <span className="m-booking-card-val">{item.entry.hotspotLabel}</span>
+                                </div>
+                                {item.entry.requestedTimeRaw ? (
+                                  <div className="m-booking-card-row">
+                                    <span className="m-booking-card-lbl">Время</span>
+                                    <span className="m-booking-card-val">{item.entry.requestedTimeRaw}</span>
+                                  </div>
+                                ) : null}
+                              </div>
+                              <div className="m-booking-card-hint">◷ Открыть лист ожидания</div>
+                            </article>
+                          );
+                        }
 
-                    {column.items.map((item) => {
-                      if (item.kind === "waitlist") {
-                        const statusMeta = getWaitlistEntryMeta(item.entry);
-
+                        const booking = item.booking;
+                        const meta = getBookingStatusMeta(booking);
                         return (
                           <article
-                            className="manager-booking-card compact-manager-card manager-kanban-card"
+                            className="m-booking-card"
+                            draggable
                             key={item.id}
-                            onClick={() => setActiveTab("waitlist")}
+                            onClick={() => setSelectedBookingId(booking.id)}
+                            onDragEnd={() => { setDraggedBookingId(null); setDragOverColumn(null); }}
+                            onDragStart={() => setDraggedBookingId(booking.id)}
                           >
-                            <div className="manager-kanban-card-top">
-                              <span className={`manager-status-badge status-${statusMeta.tone}`}>
-                                {statusMeta.shortLabel}
-                              </span>
-                              <div className="manager-booking-title-copy">
-                                <strong>{item.entry.customerName}</strong>
-                              </div>
+                            <div className="m-booking-card-top">
+                              <span className={`m-status m-status-${meta.tone}`}>{meta.shortLabel}</span>
+                              <span className="m-booking-card-name">{booking.customerName}</span>
                             </div>
-
-                            <div className="manager-kanban-info">
-                              <div className="manager-kanban-info-row">
-                                <span className="manager-kanban-info-label">Стол</span>
-                                <span className="manager-kanban-info-value">{item.entry.hotspotLabel}</span>
+                            <div className="m-booking-card-info">
+                              <div className="m-booking-card-row">
+                                <span className="m-booking-card-lbl">Стол</span>
+                                <span className="m-booking-card-val">{booking.placeLabel}</span>
                               </div>
-                              {item.entry.requestedTimeRaw ? (
-                                <div className="manager-kanban-info-row">
-                                  <span className="manager-kanban-info-label">Время</span>
-                                  <span className="manager-kanban-info-value">{item.entry.requestedTimeRaw}</span>
+                              {booking.slotLabel ? (
+                                <div className="m-booking-card-row">
+                                  <span className="m-booking-card-lbl">Время</span>
+                                  <span className="m-booking-card-val">{booking.slotLabel}</span>
                                 </div>
                               ) : null}
-                              <div className="manager-kanban-info-row">
-                                <span className="manager-kanban-info-label">Дата</span>
-                                <span className="manager-kanban-info-value">
-                                  {item.entry.requestedDateIso
-                                    ? formatOperationalDate(item.entry.requestedDateIso)
-                                    : item.entry.requestedAtLabel}
-                                </span>
+                              <div className="m-booking-card-row">
+                                <span className="m-booking-card-lbl">Дата</span>
+                                <span className="m-booking-card-val">{booking.dateLabel}</span>
                               </div>
                             </div>
-                            <div className="manager-kanban-card-hint">
-                              <span className="manager-button-icon" aria-hidden="true">◷</span>
-                              <span>Открыть лист ожидания</span>
-                            </div>
+                            <div className="m-booking-card-hint">↗ Открыть детали</div>
                           </article>
                         );
-                      }
-
-                      const booking = item.booking;
-                      const statusMeta = getBookingStatusMeta(booking);
-
-                      return (
-                        <article
-                          className="manager-booking-card compact-manager-card manager-kanban-card"
-                          draggable
-                          key={item.id}
-                          onClick={() => setSelectedBookingId(booking.id)}
-                          onDragEnd={() => {
-                            setDraggedBookingId(null);
-                            setDragOverColumn(null);
-                          }}
-                          onDragStart={() => setDraggedBookingId(booking.id)}
-                        >
-                          <div className="manager-kanban-card-top">
-                            <span className={`manager-status-badge status-${statusMeta.tone}`}>
-                              {statusMeta.shortLabel}
-                            </span>
-                            <div className="manager-booking-title-copy">
-                              <strong>{booking.customerName}</strong>
-                            </div>
-                          </div>
-
-                          <div className="manager-kanban-info">
-                            <div className="manager-kanban-info-row">
-                              <span className="manager-kanban-info-label">Стол</span>
-                              <span className="manager-kanban-info-value">{booking.placeLabel}</span>
-                            </div>
-                            {booking.slotLabel ? (
-                              <div className="manager-kanban-info-row">
-                                <span className="manager-kanban-info-label">Время</span>
-                                <span className="manager-kanban-info-value">{booking.slotLabel}</span>
-                              </div>
-                            ) : null}
-                            <div className="manager-kanban-info-row">
-                              <span className="manager-kanban-info-label">Дата</span>
-                              <span className="manager-kanban-info-value">{booking.dateLabel}</span>
-                            </div>
-                          </div>
-                          <div className="manager-kanban-card-hint">
-                            <span className="manager-button-icon" aria-hidden="true">↗</span>
-                            <span>Открыть детали</span>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-          </div>
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </>
           ) : null}
 
-          {activeTab === "archive" ? (
-            <div className="manager-table-shell compact-manager-shell">
-              <div className="manager-table-head compact-manager-head">
+          {/* ── ARCHIVE TAB ──────────────────────────────────── */}
+          {role !== "superadmin" && activeTab === "archive" ? (
+            <>
+              <div className="m-section-head">
                 <div>
-                  <span className="card-label">Архив заявок</span>
-                  <h2>Все архивные заявки</h2>
+                  <div className="m-eyebrow">Архив заявок</div>
+                  <h1 className="m-section-title">Все архивные заявки</h1>
                 </div>
-                <div className="manager-archive-filters">
-                  <input
-                    className="manager-filter-input"
-                    onChange={(event) => setArchiveQuery(event.target.value)}
-                    placeholder="Поиск по клиенту, столу или телефону"
-                    type="search"
-                    value={archiveQuery}
-                  />
-                  <select
-                    className="manager-filter-select"
-                    onChange={(event) => setArchiveStatusFilter(event.target.value as "all" | ManagerBooking["status"])}
-                    value={archiveStatusFilter}
-                  >
+                <div className="m-filters">
+                  <input className="m-filter-input" onChange={(e) => setArchiveQuery(e.target.value)} placeholder="Поиск по клиенту, столу, телефону" type="search" value={archiveQuery} />
+                  <select className="m-filter-select" onChange={(e) => setArchiveStatusFilter(e.target.value as "all" | ManagerBooking["status"])} value={archiveStatusFilter}>
                     <option value="all">Все статусы</option>
                     <option value="new">Новая</option>
                     <option value="hold_pending">Резерв</option>
@@ -1864,453 +1091,311 @@ export function ManagerDashboard({
                     <option value="waitlist">Ожидание</option>
                     <option value="declined">Закрыта</option>
                   </select>
-                  <input
-                    className="manager-filter-input manager-filter-date"
-                    onChange={(event) => setArchiveDateFilter(event.target.value)}
-                    type="date"
-                    value={archiveDateFilter}
-                  />
+                  <input className="m-filter-input" onChange={(e) => setArchiveDateFilter(e.target.value)} type="date" value={archiveDateFilter} style={{ minWidth: 140 }} />
                 </div>
               </div>
 
-              <div className="manager-list">
+              <div className="m-list">
                 {filteredArchivedBookings.length === 0 ? (
-                  <div className="manager-note-box">
-                    В архиве ничего не найдено по текущим фильтрам.
-                  </div>
+                  <div className="m-note">В архиве ничего не найдено по текущим фильтрам.</div>
                 ) : null}
-
                 {filteredArchivedBookings.map((booking) => {
-                  const statusMeta = getBookingStatusMeta(booking);
-
+                  const meta = getBookingStatusMeta(booking);
                   return (
-                    <article className="manager-booking-card compact-manager-card" key={`archive-${booking.id}`}>
-                      <div className="manager-booking-title">
-                        <div className="manager-booking-title-copy">
-                          <strong>{booking.customerName}</strong>
-                          <span className="manager-booking-status-note">{statusMeta.detailLabel}</span>
+                    <div className="m-list-card" key={`arch-${booking.id}`}>
+                      <div className="m-list-card-top">
+                        <div>
+                          <div className="m-list-card-name">{booking.customerName}</div>
+                          <div className="m-list-card-sub">{meta.detailLabel}</div>
                         </div>
-                        <span className={`manager-status-badge status-${statusMeta.tone}`}>
-                          {statusMeta.shortLabel}
-                        </span>
+                        <span className={`m-status m-status-${meta.tone}`}>{meta.shortLabel}</span>
                       </div>
-
-                      <div className="manager-booking-grid">
-                        <div className="manager-booking-main">
-                          <p>{booking.placeLabel}</p>
-                          <div className="manager-meta-row">
-                            {booking.slotLabel ? <span className="fact">{booking.slotLabel}</span> : null}
-                            <span className="fact">{booking.dateLabel}</span>
-                            <span className="fact">{booking.guestsLabel}</span>
-                          </div>
+                      <div className="m-list-card-grid">
+                        <div className="m-list-card-facts">
+                          <span className="m-fact">{booking.placeLabel}</span>
+                          {booking.slotLabel ? <span className="m-fact">{booking.slotLabel}</span> : null}
+                          <span className="m-fact">{booking.dateLabel}</span>
+                          <span className="m-fact">{booking.guestsLabel}</span>
+                          <span className="m-fact">{booking.phone}</span>
                         </div>
-                        <div className="manager-booking-side">
-                          <span>{booking.phone}</span>
+                        <div className="m-list-card-actions">
+                          <button className="m-btn" onClick={() => setSelectedBookingId(booking.id)} type="button">↗ Детали</button>
+                          <button className="m-btn" disabled={isPending} onClick={() => handleAction(booking.id, "restore")} type="button">↺ В работу</button>
                         </div>
                       </div>
-
-                      <div className="manager-actions-row manager-actions-row-grouped">
-                        <div className="manager-action-cluster">
-                          <button
-                            className="toolbar-button"
-                            onClick={() => setSelectedBookingId(booking.id)}
-                            type="button"
-                          >
-                            <span className="manager-button-icon" aria-hidden="true">↗</span>
-                            <span>Открыть детали</span>
-                          </button>
-                        </div>
-                        <div className="manager-action-cluster manager-action-cluster-primary">
-                          <button
-                            className="toolbar-button"
-                            disabled={isPending}
-                            onClick={() => handleAction(booking.id, "restore")}
-                            type="button"
-                          >
-                            <span className="manager-button-icon" aria-hidden="true">↺</span>
-                            <span>Вернуть в работу</span>
-                          </button>
-                        </div>
-                      </div>
-                    </article>
+                    </div>
                   );
                 })}
               </div>
-            </div>
+            </>
           ) : null}
 
-          {activeTab === "manual" ? (
-            <div className="manager-table-shell compact-manager-shell">
-            <div className="manager-table-head compact-manager-head">
-              <div>
-                <span className="card-label">Быстрая запись</span>
-                <h2>Записать бронь на конкретный стол</h2>
-              </div>
-            </div>
-
-            <form className="manager-ops-form" onSubmit={handleManualBooking} ref={manualFormRef}>
-              <div className="manager-venue-inline-card">
-                <span className="card-label">Объект</span>
-                <strong>{selectedVenue?.name || "Объект не выбран"}</strong>
-                <p>{selectedVenue?.city || "Подключи объект к менеджеру"}</p>
-              </div>
-
-              {selectedManualScene ? (
-                <div className="manager-plan-shell">
-                  <div className="manager-plan-head">
-                    <div>
-                      <span className="card-label">Схема выбора</span>
-                      <strong>{selectedManualScene.floorPlanLabel || selectedManualScene.title}</strong>
-                    </div>
-                    <div className="scene-editor-tabs manager-scene-tabs">
-                      {manualScenes.map((scene) => (
-                        <button
-                          className={`scene-chip ${scene.id === selectedManualScene.id ? "active" : ""}`}
-                          key={scene.id}
-                          onClick={() => {
-                            setSelectedSceneId(scene.id);
-                            setManualTime("");
-                            setPendingManualTime("");
-                          }}
-                          type="button"
-                        >
-                          <strong>{scene.title}</strong>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="manager-plan-board">
-                    {selectedScenePoints.map((point) => {
-                      const left = `${Math.min(Math.max(((point.yaw + 180) / 360) * 100, 8), 92)}%`;
-                      const top = `${Math.min(Math.max(((point.pitch + 35) / 70) * 100, 12), 88)}%`;
-
-                      return (
-                        <button
-                          className={`manager-plan-point ${selectedPoint?.id === point.id ? "active" : ""}`}
-                          key={point.id}
-                          onClick={() => {
-                            setSelectedHotspotId(point.id);
-                            setManualTime("");
-                            setPendingManualTime("");
-                          }}
-                          style={{ left, top }}
-                          type="button"
-                        >
-                          <span>{point.kind === "table" ? "Стол" : "Зона"}</span>
-                          <strong>{point.label}</strong>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="settings-field-grid">
-                <label className="settings-field">
-                  <span>Точка по схеме</span>
-                  <select
-                    className="compact-select manager-input"
-                    onChange={(event) => {
-                      setSelectedHotspotId(event.target.value);
-                      setManualTime("");
-                      setPendingManualTime("");
-                    }}
-                    value={selectedPoint?.id || ""}
-                  >
-                    {bookablePoints.map((point) => (
-                      <option key={point.id} value={point.id}>
-                        {point.sceneTitle} · {point.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="settings-field-grid">
-                <label className="settings-field">
-                  <span>Клиент</span>
-                  <input className="manager-input" name="name" placeholder="Имя клиента" required />
-                </label>
-                <label className="settings-field">
-                  <span>Телефон</span>
-                  <input className="manager-input" name="phone" placeholder="+998..." required />
-                </label>
-                <label className="settings-field">
-                  <span>Telegram</span>
-                  <input className="manager-input" name="telegram" placeholder="@telegram" />
-                </label>
-                <label className="settings-field">
-                  <span>Гостей</span>
-                  <input className="manager-input" defaultValue={2} min={1} name="guests" type="number" />
-                </label>
-              </div>
-
-              <div className="settings-field-grid">
-                <label className="settings-field">
-                  <span>Дата</span>
-                  <input
-                    className="manager-input"
-                    min={getTodayIso()}
-                    onChange={(event) => {
-                      setManualDate(event.target.value);
-                      setManualTime("");
-                      setPendingManualTime("");
-                    }}
-                    type="date"
-                    value={manualDate}
-                  />
-                </label>
-                <label className="settings-field">
-                  <span>Время</span>
-                  <select
-                    className="compact-select manager-input"
-                    name="time"
-                    onChange={(event) => {
-                      setManualTime(event.target.value);
-                      setPendingManualTime("");
-                    }}
-                    value={manualTime}
-                  >
-                    <option value="">Любое время / уточнить позже</option>
-                    {manualTimeOptions.map((slot) => (
-                      <option key={slot.value} value={slot.value}>
-                        {slot.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="settings-field">
-                  <span>Статус</span>
-                  <select className="compact-select manager-input" defaultValue="CONFIRMED" name="status">
-                    <option value="CONFIRMED">Сразу подтвердить</option>
-                    <option value="HOLD_PENDING">Поставить на hold</option>
-                    <option value="NEW">Новая заявка</option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="manager-slot-feedback">
-                {isManualSlotLoading ? (
-                  <div className="manager-note-box">Загружаем доступные слоты...</div>
-                ) : manualTime ? (
-                  <div className="manager-note-box">
-                    Выбран слот: <strong>{manualTime}</strong>
-                  </div>
-                ) : (
-                  <div className="manager-note-box">Выбери свободный слот на схеме дня или в списке времени.</div>
-                )}
-              </div>
-
-              <label className="settings-field">
-                <span>Комментарий</span>
-                <textarea className="manager-input" name="note" placeholder="Доп. заметка менеджера" />
-              </label>
-
-              <div className="manager-form-actions">
-                <button className="primary-button" disabled={isPending} type="submit">
-                  Записать бронь
-                </button>
-                <button
-                  className="primary-button manager-secondary-action"
-                  disabled={isPending}
-                  onClick={handleManualWaitlist}
-                  type="button"
-                >
-                  В лист ожидания
-                </button>
-              </div>
-            </form>
-          </div>
-          ) : null}
-
-          {activeTab === "waitlist" ? (
+          {/* ── MANUAL BOOKING TAB ───────────────────────────── */}
+          {role !== "superadmin" && activeTab === "manual" ? (
             <>
-              <div className="manager-table-shell compact-manager-shell">
-                <div className="manager-table-head compact-manager-head">
-                  <div>
-                    <span className="card-label">Лист ожидания</span>
-                    <h2>Клиенты, с которыми нужно связаться по освободившемуся месту</h2>
+              <div className="m-section-head">
+                <div>
+                  <div className="m-eyebrow">Быстрая запись</div>
+                  <h1 className="m-section-title">Записать бронь на конкретный стол</h1>
+                </div>
+              </div>
+
+              <form onSubmit={handleManualBooking} ref={manualFormRef}>
+                {/* Venue info */}
+                <div className="m-note" style={{ marginBottom: 20 }}>
+                  <strong style={{ color: "var(--s-text)", fontSize: 13 }}>{selectedVenue?.name || "Объект не выбран"}</strong>
+                  {selectedVenue ? <span style={{ marginLeft: 8 }}>{selectedVenue.city}</span> : <span> — подключи объект к менеджеру</span>}
+                </div>
+
+                {/* Floor plan */}
+                {selectedManualScene ? (
+                  <div className="m-plan-wrap">
+                    <div className="m-plan-head">
+                      <div>
+                        <div className="m-eyebrow">Схема выбора</div>
+                        <strong style={{ fontSize: 13, color: "var(--s-text)" }}>{selectedManualScene.floorPlanLabel || selectedManualScene.title}</strong>
+                      </div>
+                      <div className="m-plan-scene-tabs">
+                        {manualScenes.map((scene) => (
+                          <button
+                            className={`m-plan-scene-tab ${scene.id === selectedManualScene.id ? "active" : ""}`}
+                            key={scene.id}
+                            onClick={() => { setSelectedSceneId(scene.id); setManualTime(""); setPendingManualTime(""); }}
+                            type="button"
+                          >
+                            {scene.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="m-plan-board">
+                      {selectedScenePoints.map((point) => {
+                        const left = `${Math.min(Math.max(((point.yaw + 180) / 360) * 100, 8), 92)}%`;
+                        const top = `${Math.min(Math.max(((point.pitch + 35) / 70) * 100, 12), 88)}%`;
+                        return (
+                          <button
+                            className={`m-plan-point ${selectedPoint?.id === point.id ? "active" : ""}`}
+                            key={point.id}
+                            onClick={() => { setSelectedHotspotId(point.id); setManualTime(""); setPendingManualTime(""); }}
+                            style={{ left, top } as CSSProperties}
+                            type="button"
+                          >
+                            <span>{point.kind === "table" ? "Стол" : "Зона"}</span>
+                            <strong>{point.label}</strong>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Point selector */}
+                <div className="m-form-grid" style={{ gridTemplateColumns: "1fr" }}>
+                  <div className="m-field">
+                    <label className="m-field-label">Точка по схеме</label>
+                    <select className="m-select" onChange={(e) => { setSelectedHotspotId(e.target.value); setManualTime(""); setPendingManualTime(""); }} value={selectedPoint?.id || ""}>
+                      {bookablePoints.map((point) => (
+                        <option key={point.id} value={point.id}>{point.sceneTitle} · {point.label}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
-                <div className="manager-list">
-                  {activeWaitlistForOperationalDate.length === 0 ? (
-                    <div className="manager-note-box">Лист ожидания пока пуст.</div>
-                  ) : null}
+                {/* Client info */}
+                <div className="m-form-grid">
+                  <div className="m-field">
+                    <label className="m-field-label">Клиент</label>
+                    <input className="m-input" name="name" placeholder="Имя клиента" required />
+                  </div>
+                  <div className="m-field">
+                    <label className="m-field-label">Телефон</label>
+                    <input className="m-input" name="phone" placeholder="+998..." required />
+                  </div>
+                  <div className="m-field">
+                    <label className="m-field-label">Telegram</label>
+                    <input className="m-input" name="telegram" placeholder="@telegram" />
+                  </div>
+                  <div className="m-field">
+                    <label className="m-field-label">Гостей</label>
+                    <input className="m-input" defaultValue={2} min={1} name="guests" type="number" />
+                  </div>
+                </div>
 
-                  {activeWaitlistForOperationalDate.map((entry) => (
-                    <article className="manager-booking-card compact-manager-card" key={entry.id}>
-                      <div className="manager-booking-title">
-                        <strong>{entry.customerName}</strong>
-                        <span className={`manager-status-badge status-${entry.status}`}>
-                          {entry.status === "contacted" ? "Связались" : "Ожидает"}
-                        </span>
+                {/* Date/time/status */}
+                <div className="m-form-grid">
+                  <div className="m-field">
+                    <label className="m-field-label">Дата</label>
+                    <input className="m-input" min={getTodayIso()} onChange={(e) => { setManualDate(e.target.value); setManualTime(""); setPendingManualTime(""); }} type="date" value={manualDate} />
+                  </div>
+                  <div className="m-field">
+                    <label className="m-field-label">Время</label>
+                    <select className="m-select" name="time" onChange={(e) => { setManualTime(e.target.value); setPendingManualTime(""); }} value={manualTime}>
+                      <option value="">Любое время / уточнить позже</option>
+                      {manualTimeOptions.map((slot) => (
+                        <option key={slot.value} value={slot.value}>{slot.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="m-field">
+                    <label className="m-field-label">Статус</label>
+                    <select className="m-select" defaultValue="CONFIRMED" name="status">
+                      <option value="CONFIRMED">Сразу подтвердить</option>
+                      <option value="HOLD_PENDING">Поставить на hold</option>
+                      <option value="NEW">Новая заявка</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Slot feedback */}
+                <div className={`m-slot-feedback ${manualTime ? "has-slot" : ""}`}>
+                  {isManualSlotLoading ? "Загружаем доступные слоты..." : manualTime ? <>Выбран слот: <strong>{manualTime}</strong></> : "Выбери свободный слот на схеме дня или в списке времени."}
+                </div>
+
+                {/* Note */}
+                <div className="m-field" style={{ marginBottom: 24 }}>
+                  <label className="m-field-label">Комментарий</label>
+                  <textarea className="m-textarea" name="note" placeholder="Доп. заметка менеджера" />
+                </div>
+
+                <div className="m-form-actions">
+                  <button className="m-btn m-btn-gold" disabled={isPending} type="submit">Записать бронь</button>
+                  <button className="m-btn" disabled={isPending} onClick={handleManualWaitlist} type="button">В лист ожидания</button>
+                </div>
+              </form>
+            </>
+          ) : null}
+
+          {/* ── WAITLIST TAB ─────────────────────────────────── */}
+          {role !== "superadmin" && activeTab === "waitlist" ? (
+            <>
+              <div className="m-section-head">
+                <div>
+                  <div className="m-eyebrow">Лист ожидания</div>
+                  <h1 className="m-section-title">Клиенты, с которыми нужно связаться</h1>
+                </div>
+              </div>
+
+              <div className="m-list" style={{ marginBottom: 32 }}>
+                {activeWaitlistForOperationalDate.length === 0 ? (
+                  <div className="m-note">Лист ожидания пока пуст.</div>
+                ) : null}
+                {activeWaitlistForOperationalDate.map((entry) => (
+                  <div className="m-list-card" key={entry.id}>
+                    <div className="m-list-card-top">
+                      <div>
+                        <div className="m-list-card-name">{entry.customerName}</div>
+                        <div className="m-list-card-sub">{entry.venueName}</div>
                       </div>
-                      <div className="manager-booking-grid">
-                        <div className="manager-booking-main">
-                          <p>{entry.venueName}</p>
-                          <div className="manager-meta-row">
-                            <span className="fact">{entry.hotspotLabel}</span>
-                            {entry.requestedSlotLabel ? <span className="fact">{entry.requestedSlotLabel}</span> : null}
-                          </div>
-                        </div>
-                        <div className="manager-booking-side">
-                          <span>{entry.customerPhone}</span>
-                          {entry.customerTelegram ? <span>{entry.customerTelegram}</span> : null}
-                          <span>{entry.requestedAtLabel}</span>
-                        </div>
+                      <span className={`m-status m-status-${entry.status === "contacted" ? "contacted" : "active"}`}>
+                        {entry.status === "contacted" ? "Связались" : "Ожидает"}
+                      </span>
+                    </div>
+                    <div className="m-list-card-grid">
+                      <div className="m-list-card-facts">
+                        <span className="m-fact">{entry.hotspotLabel}</span>
+                        {entry.requestedSlotLabel ? <span className="m-fact">{entry.requestedSlotLabel}</span> : null}
+                        <span className="m-fact">{entry.customerPhone}</span>
+                        {entry.customerTelegram ? <span className="m-fact">{entry.customerTelegram}</span> : null}
+                        <span className="m-fact">{entry.requestedAtLabel}</span>
                       </div>
-                      <div className="manager-actions-row">
-                        <a
-                          aria-label="Позвонить"
-                          className="toolbar-button manager-quick-contact"
-                          href={`tel:${slugifyPhone(entry.customerPhone)}`}
-                          title="Позвонить"
-                        >
-                          <span className="manager-button-icon" aria-hidden="true"><PhoneIcon /></span>
-                        </a>
-                        <a
-                          aria-label="Связаться в Telegram"
-                          className="toolbar-button manager-quick-contact"
-                          href={SUPPORT_TELEGRAM_URL}
-                          rel="noreferrer"
-                          target="_blank"
-                          title="Связаться в Telegram"
-                        >
-                          <span className="manager-button-icon" aria-hidden="true"><TelegramIcon /></span>
-                        </a>
+                      <div className="m-list-card-actions">
+                        <a className="m-contact-btn" href={`tel:${slugifyPhone(entry.customerPhone)}`}><PhoneIcon /></a>
+                        <a className="m-contact-btn" href={SUPPORT_TELEGRAM_URL} rel="noreferrer" target="_blank"><TelegramIcon /></a>
                         {entry.customerTelegram ? (
-                          <a
-                            aria-label="Открыть Telegram клиента"
-                            className="toolbar-button manager-quick-contact"
-                            href={`https://t.me/${entry.customerTelegram.replace("@", "")}`}
-                            rel="noreferrer"
-                            target="_blank"
-                            title="Открыть Telegram клиента"
-                          >
-                            <span className="manager-button-icon" aria-hidden="true"><TelegramIcon /></span>
-                          </a>
+                          <a className="m-contact-btn" href={`https://t.me/${entry.customerTelegram.replace("@", "")}`} rel="noreferrer" target="_blank"><TelegramIcon /></a>
                         ) : null}
-                        <button
-                          className="toolbar-button"
-                          disabled={isPending}
-                          onClick={() => handleWaitlistOffer(entry.id)}
-                          type="button"
-                        >
-                          {entry.status === "contacted" ? "Позвонить еще раз" : "Позвонил"}
+                        <button className="m-btn" disabled={isPending} onClick={() => handleWaitlistOffer(entry.id)} type="button">
+                          {entry.status === "contacted" ? "Позвонить ещё" : "Позвонил"}
                         </button>
                         {entry.status === "contacted" ? (
-                          <button
-                            className="toolbar-button"
-                            disabled={isPending}
-                            onClick={() => handleWaitlistResponded(entry.id)}
-                            type="button"
-                          >
-                            Ответил
-                          </button>
-                        ) : null}
-                        {entry.status === "contacted" ? (
-                          <button
-                            className="toolbar-button"
-                            disabled={isPending}
-                            onClick={() => handleWaitlistNoResponse(entry.id)}
-                            type="button"
-                          >
-                            Не ответил
-                          </button>
+                          <>
+                            <button className="m-btn m-btn-positive" disabled={isPending} onClick={() => handleWaitlistResponded(entry.id)} type="button">Ответил</button>
+                            <button className="m-btn m-btn-danger" disabled={isPending} onClick={() => handleWaitlistNoResponse(entry.id)} type="button">Не ответил</button>
+                          </>
                         ) : null}
                       </div>
-                    </article>
-                  ))}
-                </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {archivedWaitlistForOperationalDate.length > 0 ? (
-                <div className="manager-table-shell compact-manager-shell">
-                  <div className="manager-table-head compact-manager-head">
+                <>
+                  <div className="m-section-head">
                     <div>
-                      <span className="card-label">История ожидания</span>
-                      <h2>Закрытые записи</h2>
+                      <div className="m-eyebrow">История ожидания</div>
+                      <h2 className="m-section-title">Закрытые записи</h2>
                     </div>
                   </div>
-
-                  <div className="manager-list">
+                  <div className="m-list">
                     {archivedWaitlistForOperationalDate.map((entry) => (
-                      <article className="manager-booking-card compact-manager-card" key={`history-${entry.id}`}>
-                        <div className="manager-booking-title">
-                          <strong>{entry.customerName}</strong>
-                          <span className={`manager-status-badge status-${entry.status}`}>
+                      <div className="m-list-card" key={`hist-${entry.id}`}>
+                        <div className="m-list-card-top">
+                          <div>
+                            <div className="m-list-card-name">{entry.customerName}</div>
+                            <div className="m-list-card-sub">{entry.venueName}</div>
+                          </div>
+                          <span className={`m-status ${entry.status === "resolved" ? "m-status-resolved" : "m-status-declined"}`}>
                             {entry.status === "resolved" ? "Закрыто" : "Отменено"}
                           </span>
                         </div>
-                        <div className="manager-booking-grid">
-                          <div className="manager-booking-main">
-                            <p>{entry.venueName}</p>
-                            <div className="manager-meta-row">
-                              <span className="fact">{entry.hotspotLabel}</span>
-                              {entry.requestedSlotLabel ? <span className="fact">{entry.requestedSlotLabel}</span> : null}
-                            </div>
-                          </div>
-                          <div className="manager-booking-side">
-                            <span>{entry.customerPhone}</span>
-                            <span>{entry.requestedAtLabel}</span>
-                          </div>
+                        <div className="m-list-card-facts">
+                          <span className="m-fact">{entry.hotspotLabel}</span>
+                          {entry.requestedSlotLabel ? <span className="m-fact">{entry.requestedSlotLabel}</span> : null}
+                          <span className="m-fact">{entry.customerPhone}</span>
+                          <span className="m-fact">{entry.requestedAtLabel}</span>
                         </div>
-                        {entry.note ? <div className="manager-note-box">{entry.note}</div> : null}
-                      </article>
+                        {entry.note ? <div className="m-note">{entry.note}</div> : null}
+                      </div>
                     ))}
                   </div>
-                </div>
+                </>
               ) : null}
             </>
           ) : null}
 
-          {activeTab === "reminders" ? (
-            <div className="manager-table-shell compact-manager-shell">
-            <div className="manager-table-head compact-manager-head">
-              <div>
-                <span className="card-label">Напоминания и бот</span>
-                <h2>Очередь уведомлений по броням</h2>
+          {/* ── REMINDERS TAB ────────────────────────────────── */}
+          {role !== "superadmin" && activeTab === "reminders" ? (
+            <>
+              <div className="m-section-head">
+                <div>
+                  <div className="m-eyebrow">Напоминания и бот</div>
+                  <h1 className="m-section-title">Очередь уведомлений по броням</h1>
+                </div>
+                <button className="m-btn m-btn-gold" disabled={isPending} onClick={handleProcessNotifications} type="button">
+                  Обработать сейчас
+                </button>
               </div>
-              <button className="toolbar-button" disabled={isPending} onClick={handleProcessNotifications} type="button">
-                Обработать сейчас
-              </button>
-            </div>
 
-            <div className="manager-list">
-              {remindersForOperationalDate.length === 0 ? (
-                <div className="manager-note-box">Пока нет запланированных уведомлений.</div>
-              ) : null}
-
-              {remindersForOperationalDate.map((item) => (
-                <article className="manager-booking-card compact-manager-card" key={item.id}>
-                  <div className="manager-booking-title">
-                    <strong>{item.venueName}</strong>
-                    <span className={`manager-status-badge status-${item.status}`}>
-                      {item.status === "pending" ? "Запланировано" : item.status === "sent" ? "Отправлено" : "Ошибка"}
-                    </span>
-                  </div>
-                  <div className="manager-booking-grid">
-                    <div className="manager-booking-main">
-                      <p>{item.message}</p>
-                      <div className="manager-meta-row">
-                        {item.placeLabel ? <span className="fact">{item.placeLabel}</span> : null}
-                        <span className="fact">{item.scheduledAtLabel}</span>
+              <div className="m-list">
+                {remindersForOperationalDate.length === 0 ? (
+                  <div className="m-note">Пока нет запланированных уведомлений.</div>
+                ) : null}
+                {remindersForOperationalDate.map((item) => (
+                  <div className="m-list-card" key={item.id}>
+                    <div className="m-list-card-top">
+                      <div>
+                        <div className="m-list-card-name">{item.venueName}</div>
+                        <div className="m-list-card-sub">{item.message}</div>
                       </div>
+                      <span className={`m-status m-status-${item.status === "pending" ? "pending" : item.status === "sent" ? "sent" : "error"}`}>
+                        {item.status === "pending" ? "Запланировано" : item.status === "sent" ? "Отправлено" : "Ошибка"}
+                      </span>
                     </div>
-                    <div className="manager-booking-side">
-                      <span>{item.channel}</span>
-                      <span>{item.recipientLabel}</span>
+                    <div className="m-list-card-facts">
+                      {item.placeLabel ? <span className="m-fact">{item.placeLabel}</span> : null}
+                      <span className="m-fact">{item.scheduledAtLabel}</span>
+                      <span className="m-fact">{item.channel}</span>
+                      <span className="m-fact">{item.recipientLabel}</span>
                     </div>
                   </div>
-                </article>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+            </>
           ) : null}
-        </div>
-      )}
-    </section>
+
+        </main>
+      </div>
+    </div>
   );
 }

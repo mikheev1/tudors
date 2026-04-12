@@ -73,9 +73,10 @@ const footerColumns = [
   }
 ] as const;
 
-const publicNavLinks = [
-  { href: "/", label: "Места" },
-  { href: "/search?vertical=restaurant&type=all&availability=all&time=all&q=", label: "Подборки" }
+const heroHighlights = [
+  "360° тур до бронирования",
+  "Быстрый ответ менеджера",
+  "Заявка за 1 минуту"
 ] as const;
 
 const phoneCountryCodes = ["+998", "+7", "+996", "+994", "+90"];
@@ -89,23 +90,12 @@ function buildPhoneNumber(countryCode: string, phoneLocal: string) {
   return `${countryCode} ${normalizedLocal}`.trim();
 }
 
-function getSlotStatusText(slot: BookingSlot, hotspotKind?: Hotspot["kind"]) {
+function getSlotStatusText(slot: BookingSlot) {
   if (slot.status === "unavailable") {
-    if (slot.unavailableReason === "past") {
-      return "Время прошло";
-    }
-
-    if (slot.unavailableReason === "occupied") {
-      return "Уже занято";
-    }
-
+    if (slot.unavailableReason === "past") return "Прошло";
+    if (slot.unavailableReason === "occupied") return "Занято";
     return "Недоступно";
   }
-
-  if (hotspotKind === "table" || hotspotKind === "zone") {
-    return "Свободно";
-  }
-
   return "Свободно";
 }
 
@@ -115,10 +105,30 @@ function getBookingPointStatus(status?: Hotspot["status"]) {
 
 function getTodayDateValue() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = `${now.getMonth() + 1}`.padStart(2, "0");
-  const day = `${now.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const y = now.getFullYear();
+  const m = `${now.getMonth() + 1}`.padStart(2, "0");
+  const d = `${now.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getVenueAvailabilityLabel(status: Venue["availability"]) {
+  switch (status) {
+    case "available": return "Свободно";
+    case "limited": return "Мало мест";
+    case "busy": return "Почти занято";
+    default: return "Уточнить";
+  }
+}
+
+function getStatusLabel(status: Hotspot["status"], kind?: Hotspot["kind"]) {
+  if (kind === "table" || kind === "zone") {
+    return status === "waitlist" ? "Недоступно" : "Свободно";
+  }
+  switch (status) {
+    case "available": return "Свободно";
+    case "waitlist": return "Недоступно";
+    default: return "Уточнить";
+  }
 }
 
 export function TourExplorer({
@@ -136,115 +146,72 @@ export function TourExplorer({
     availability: "all",
     time: "all"
   };
+
+  // Filter state
   const [searchDraft, setSearchDraft] = useState(startingFilters.q);
   const [verticalDraft, setVerticalDraft] = useState<"all" | VenueVertical>(startingFilters.vertical);
   const [typeDraft, setTypeDraft] = useState(startingFilters.type);
   const [availabilityDraft, setAvailabilityDraft] = useState(startingFilters.availability);
   const [timeDraft, setTimeDraft] = useState(startingFilters.time);
+
+  // Venue / scene / hotspot state
   const [venueId, setVenueId] = useState(venues[0]?.id ?? "");
   const [sceneId, setSceneId] = useState(venues[0]?.scenes[0]?.id ?? "");
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
   const [isVenueOpen, setIsVenueOpen] = useState(false);
   const [hasOpenedVenue, setHasOpenedVenue] = useState(false);
   const [panelMode, setPanelMode] = useState<"book" | "waitlist" | null>(null);
+
+  // Booking state
   const [toast, setToast] = useState<ToastState>(null);
   const [bookingDate, setBookingDate] = useState(getTodayDateValue);
   const [selectedSlotTime, setSelectedSlotTime] = useState("");
   const [availabilitySlots, setAvailabilitySlots] = useState<BookingSlot[]>([]);
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
-  const availableSlotCount = useMemo(
-    () => availabilitySlots.filter((slot) => slot.status !== "unavailable").length,
-    [availabilitySlots]
-  );
   const [isPending, startTransition] = useTransition();
+  const [isMobileHud, setIsMobileHud] = useState(false);
 
-  const venueTypes = ["all", ...new Set(venues.map((item) => item.type))];
+  // Detect mobile for HUD layout
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1024px)");
+    setIsMobileHud(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobileHud(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Derived data
+  const venueTypes = ["all", ...new Set(venues.map((v) => v.type))];
   const verticalOptions: Array<"all" | VenueVertical> = ["all", ...allVerticalOptions];
-  const timeOptions = ["all", ...new Set(venues.flatMap((item) => item.timeTags))];
+  const timeOptions = ["all", ...new Set(venues.flatMap((v) => v.timeTags))];
   const currentVertical = mode === "category" ? initialVertical : startingFilters.vertical;
 
-  const venue = useMemo(() => {
-    return venues.find((item) => item.id === venueId) ?? venues[0] ?? null;
-  }, [venueId, venues]);
+  const venue = useMemo(
+    () => venues.find((v) => v.id === venueId) ?? venues[0] ?? null,
+    [venueId, venues]
+  );
 
-  const scene = useMemo(() => {
-    return venue?.scenes.find((item) => item.id === sceneId) ?? venue?.scenes[0] ?? null;
-  }, [sceneId, venue]);
+  const scene = useMemo(
+    () => venue?.scenes.find((s) => s.id === sceneId) ?? venue?.scenes[0] ?? null,
+    [sceneId, venue]
+  );
 
-  const selectedHotspot = useMemo(() => {
-    return scene?.hotspots.find((item) => item.id === selectedHotspotId) ?? null;
-  }, [scene, selectedHotspotId]);
+  const selectedHotspot = useMemo(
+    () => scene?.hotspots.find((h) => h.id === selectedHotspotId) ?? null,
+    [scene, selectedHotspotId]
+  );
 
-  const sceneIndex = scene ? venue?.scenes.findIndex((item) => item.id === scene.id) ?? 0 : 0;
+  const sceneIndex = scene ? (venue?.scenes.findIndex((s) => s.id === scene.id) ?? 0) : 0;
   const processHint = selectedHotspot ? getProcessHint(selectedHotspot.status) : "";
-  const destinationVenues = venues.slice(0, 6);
-  const featuredCategoryVenues = venues.slice(0, 3);
   const heroVenue = venues[0];
-  const recentVenues = venues.slice(0, 4);
-  const categoryCards = verticalOptions
-    .filter((option) => option !== "all")
-    .map((option) => {
-      const items = option === currentVertical ? venues : venues.filter((item) => item.vertical === option);
-      return {
-        vertical: option,
-        label: verticalLabels[option],
-        count: items.length,
-        preview: items[0]?.preview ?? heroVenue?.preview
-      };
-    });
+  const availableSlotCount = useMemo(
+    () => availabilitySlots.filter((s) => s.status !== "unavailable").length,
+    [availabilitySlots]
+  );
 
-  async function refreshAvailabilitySnapshot() {
-    if (!venue || !selectedHotspot || panelMode === "waitlist") {
-      setAvailabilitySlots([]);
-      return;
-    }
+  // ── Effects ────────────────────────────────────────────────────
 
-    setIsAvailabilityLoading(true);
-
-    try {
-      const params = new URLSearchParams({
-        venueId: venue.id,
-        date: bookingDate,
-        hotspotLabel: selectedHotspot.heading ?? selectedHotspot.label,
-        hotspotStatus: selectedHotspot.status || "",
-        hotspotKind: selectedHotspot.kind
-      });
-
-      const response = await fetch(buildClientApiUrl(`/api/availability?${params.toString()}`), {
-        cache: "no-store"
-      });
-      const payload = (await response.json()) as { data?: BookingSlot[] };
-      const slots = payload.data || [];
-
-      setAvailabilitySlots(slots);
-      const firstAvailable = slots.find((slot) => slot.status !== "unavailable");
-      setSelectedSlotTime((current) => {
-        const currentStillExists = slots.some(
-          (slot) => slot.time === current && slot.status !== "unavailable"
-        );
-
-        if (currentStillExists) {
-          return current;
-        }
-
-        return firstAvailable?.time || "";
-      });
-    } catch {
-      setAvailabilitySlots([]);
-    } finally {
-      setIsAvailabilityLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!venues.some((item) => item.id === venueId) && venues[0]) {
-      setVenueId(venues[0].id);
-      setSceneId(venues[0].scenes[0]?.id ?? "");
-      setSelectedHotspotId(null);
-      setPanelMode(null);
-    }
-  }, [venueId, venues]);
-
+  // Sync filters when URL changes
   useEffect(() => {
     setSearchDraft(startingFilters.q);
     setVerticalDraft(mode === "category" ? initialVertical : startingFilters.vertical);
@@ -261,19 +228,29 @@ export function TourExplorer({
     startingFilters.vertical
   ]);
 
+  // Reset venueId when venue list changes
   useEffect(() => {
-    if (!toast) {
-      return;
+    if (!venues.some((v) => v.id === venueId) && venues[0]) {
+      setVenueId(venues[0].id);
+      setSceneId(venues[0].scenes[0]?.id ?? "");
+      setSelectedHotspotId(null);
+      setPanelMode(null);
     }
+  }, [venueId, venues]);
 
-    const timeoutId = window.setTimeout(() => setToast(null), 3200);
-    return () => window.clearTimeout(timeoutId);
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(id);
   }, [toast]);
 
+  // Reset slot time on date/hotspot change
   useEffect(() => {
     setSelectedSlotTime("");
   }, [bookingDate, selectedHotspotId, venueId]);
 
+  // Availability polling
   useEffect(() => {
     let isCancelled = false;
 
@@ -282,9 +259,7 @@ export function TourExplorer({
         setAvailabilitySlots([]);
         return;
       }
-
       setIsAvailabilityLoading(true);
-
       try {
         const params = new URLSearchParams({
           venueId: venue.id,
@@ -293,110 +268,85 @@ export function TourExplorer({
           hotspotStatus: selectedHotspot.status || "",
           hotspotKind: selectedHotspot.kind
         });
-
-        const response = await fetch(buildClientApiUrl(`/api/availability?${params.toString()}`), {
+        const res = await fetch(buildClientApiUrl(`/api/availability?${params.toString()}`), {
           cache: "no-store"
         });
-        const payload = (await response.json()) as { data?: BookingSlot[] };
-        const slots = payload.data || [];
-
-        if (isCancelled) {
-          return;
-        }
-
+        const data = (await res.json()) as { data?: BookingSlot[] };
+        const slots = data.data || [];
+        if (isCancelled) return;
         setAvailabilitySlots(slots);
-        const firstAvailable = slots.find((slot) => slot.status !== "unavailable");
-        setSelectedSlotTime((current) => {
-          const currentStillExists = slots.some(
-            (slot) => slot.time === current && slot.status !== "unavailable"
-          );
-
-          if (currentStillExists) {
-            return current;
-          }
-
-          return firstAvailable?.time || "";
+        const firstAvailable = slots.find((s) => s.status !== "unavailable");
+        setSelectedSlotTime((cur) => {
+          const stillValid = slots.some((s) => s.time === cur && s.status !== "unavailable");
+          return stillValid ? cur : firstAvailable?.time || "";
         });
       } catch {
-        if (!isCancelled) {
-          setAvailabilitySlots([]);
-        }
+        if (!isCancelled) setAvailabilitySlots([]);
       } finally {
-        if (!isCancelled) {
-          setIsAvailabilityLoading(false);
-        }
+        if (!isCancelled) setIsAvailabilityLoading(false);
       }
     }
 
     void loadAvailability();
-
-    const refreshAvailability = () => {
-      void loadAvailability();
-    };
-
-    const intervalId = window.setInterval(refreshAvailability, 15000);
-    window.addEventListener("focus", refreshAvailability);
-    document.addEventListener("visibilitychange", refreshAvailability);
-
+    const refresh = () => void loadAvailability();
+    const id = window.setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       isCancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshAvailability);
-      document.removeEventListener("visibilitychange", refreshAvailability);
+      window.clearInterval(id);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [bookingDate, panelMode, selectedHotspot, venue]);
 
+  // Lock body scroll when modal open
   useEffect(() => {
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
     if (isVenueOpen) {
       document.body.style.overflow = "hidden";
       document.documentElement.style.overflow = "hidden";
     }
-
     return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
     };
   }, [isVenueOpen]);
 
-  function getStatusLabel(status: Hotspot["status"], kind?: Hotspot["kind"]) {
-    if (kind === "table" || kind === "zone") {
-      return status === "waitlist" ? "Недоступно" : "Свободно";
-    }
+  // ── Handlers ───────────────────────────────────────────────────
 
-    switch (status) {
-      case "available":
-        return "Свободно";
-      case "waitlist":
-        return "Недоступно";
-      default:
-        return "Уточнить";
+  async function refreshAvailabilitySnapshot() {
+    if (!venue || !selectedHotspot || panelMode === "waitlist") {
+      setAvailabilitySlots([]);
+      return;
     }
-  }
-
-  function getVenueAvailabilityLabel(status: Venue["availability"]) {
-    switch (status) {
-      case "available":
-        return "Свободно";
-      case "limited":
-        return "Мало мест";
-      case "busy":
-        return "Почти занято";
-      default:
-        return "Уточнить";
+    setIsAvailabilityLoading(true);
+    try {
+      const params = new URLSearchParams({
+        venueId: venue.id,
+        date: bookingDate,
+        hotspotLabel: selectedHotspot.heading ?? selectedHotspot.label,
+        hotspotStatus: selectedHotspot.status || "",
+        hotspotKind: selectedHotspot.kind
+      });
+      const res = await fetch(buildClientApiUrl(`/api/availability?${params.toString()}`), {
+        cache: "no-store"
+      });
+      const data = (await res.json()) as { data?: BookingSlot[] };
+      setAvailabilitySlots(data.data || []);
+    } catch {
+      setAvailabilitySlots([]);
+    } finally {
+      setIsAvailabilityLoading(false);
     }
   }
 
   function selectVenue(nextVenueId: string) {
-    const nextVenue = venues.find((item) => item.id === nextVenueId);
-    if (!nextVenue) {
-      return;
-    }
-
-    setVenueId(nextVenue.id);
-    setSceneId(nextVenue.scenes[0]?.id ?? "");
+    const next = venues.find((v) => v.id === nextVenueId);
+    if (!next) return;
+    setVenueId(next.id);
+    setSceneId(next.scenes[0]?.id ?? "");
     setSelectedHotspotId(null);
     setPanelMode(null);
     setToast(null);
@@ -405,10 +355,6 @@ export function TourExplorer({
   }
 
   function selectScene(nextSceneId: string) {
-    if (!scene) {
-      return;
-    }
-
     setSceneId(nextSceneId);
     setSelectedHotspotId(null);
     setPanelMode(null);
@@ -419,16 +365,12 @@ export function TourExplorer({
       selectScene(hotspot.target);
       return;
     }
-
     setSelectedHotspotId(hotspot.id);
     setPanelMode(null);
   }
 
   function moveScene(direction: number) {
-    if (!scene || !venue) {
-      return;
-    }
-
+    if (!scene || !venue) return;
     const nextIndex = (sceneIndex + direction + venue.scenes.length) % venue.scenes.length;
     selectScene(venue.scenes[nextIndex].id);
   }
@@ -441,62 +383,52 @@ export function TourExplorer({
       availability: availabilityDraft,
       time: timeDraft
     };
-
-    startTransition(() => {
-      router.push(buildSearchHref(filters));
-    });
+    startTransition(() => router.push(buildSearchHref(filters)));
   }
 
   function handleBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const formData = new FormData(form);
-    const countryCode = String(formData.get("countryCode") || "+998");
-    const phoneLocal = String(formData.get("phoneLocal") || "");
-    const telegram = String(formData.get("telegram") || "").trim();
+    const fd = new FormData(form);
+    const countryCode = String(fd.get("countryCode") || "+998");
+    const phoneLocal = String(fd.get("phoneLocal") || "");
+    const telegram = String(fd.get("telegram") || "").trim();
 
     if (!selectedSlotTime) {
-      setToast({
-        kind: "error",
-        message: "Выбери доступный слот времени."
-      });
+      setToast({ kind: "error", message: "Выбери доступный слот времени." });
       return;
     }
 
     startTransition(async () => {
-      const response = await fetch(buildClientApiUrl("/api/booking-requests"), {
+      const res = await fetch(buildClientApiUrl("/api/booking-requests"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: String(formData.get("name") || ""),
+          name: String(fd.get("name") || ""),
           phone: buildPhoneNumber(countryCode, phoneLocal),
           telegram,
           date: bookingDate,
           time: selectedSlotTime,
-          guests: Number(formData.get("guests") || 1),
-          venue: venue.name,
-          hotspotLabel: selectedHotspot?.heading ?? selectedHotspot?.label ?? scene.title,
+          guests: Number(fd.get("guests") || 1),
+          venue: venue!.name,
+          hotspotLabel: selectedHotspot?.heading ?? selectedHotspot?.label ?? scene!.title,
           comment: [
-            selectedHotspot?.heading ?? selectedHotspot?.label ?? scene.title,
+            selectedHotspot?.heading ?? selectedHotspot?.label ?? scene!.title,
             selectedSlotTime,
-            String(formData.get("comment") || "")
+            String(fd.get("comment") || "")
           ]
             .filter(Boolean)
             .join(" | ")
         })
       });
-
-      const payload = (await response.json()) as ProcessPayload;
+      const payload = (await res.json()) as ProcessPayload;
       setToast({
-        kind: response.ok ? "success" : "error",
-        message: response.ok
+        kind: res.ok ? "success" : "error",
+        message: res.ok
           ? [payload.message, payload.holdLabel, payload.slaLabel].filter(Boolean).join(" • ")
           : payload.message || payload.issues?.join(", ") || "Не удалось отправить заявку."
       });
-
-      if (response.ok) {
+      if (res.ok) {
         form.reset();
         await refreshAvailabilitySnapshot();
       }
@@ -506,216 +438,237 @@ export function TourExplorer({
   function handleWaitlist(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const formData = new FormData(form);
-    const countryCode = String(formData.get("countryCode") || "+998");
-    const phoneLocal = String(formData.get("phoneLocal") || "");
-    const telegram = String(formData.get("telegram") || "").trim();
+    const fd = new FormData(form);
+    const countryCode = String(fd.get("countryCode") || "+998");
+    const phoneLocal = String(fd.get("phoneLocal") || "");
+    const telegram = String(fd.get("telegram") || "").trim();
 
     startTransition(async () => {
-      const response = await fetch(buildClientApiUrl("/api/waitlist"), {
+      const res = await fetch(buildClientApiUrl("/api/waitlist"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          venueId: venue.id,
-          venueName: venue.name,
-          sceneId: scene.id,
-          sceneTitle: scene.title,
+          venueId: venue!.id,
+          venueName: venue!.name,
+          sceneId: scene!.id,
+          sceneTitle: scene!.title,
           hotspotId: selectedHotspot?.id,
           hotspotLabel: selectedHotspot?.heading ?? selectedHotspot?.label,
-          name: String(formData.get("name") || ""),
+          name: String(fd.get("name") || ""),
           phone: buildPhoneNumber(countryCode, phoneLocal),
           telegram
         })
       });
-
-      const payload = (await response.json()) as ProcessPayload;
+      const payload = (await res.json()) as ProcessPayload;
       setToast({
-        kind: response.ok ? "info" : "error",
-        message: response.ok
+        kind: res.ok ? "info" : "error",
+        message: res.ok
           ? [payload.message, payload.slaLabel].filter(Boolean).join(" • ")
           : payload.message || payload.issues?.join(", ") || "Не удалось добавить в лист ожидания."
       });
-
-      if (response.ok) {
-        form.reset();
-      }
+      if (res.ok) form.reset();
     });
   }
 
-  const themeStyle = {
-    "--accent": "#a10f37",
-    "--accent-dark": "#18284a",
-    "--surface-brand": "#fbf6f7",
-    "--surface": "#ffffff",
-    "--surface-strong": "#ffffff",
-    "--line": "rgba(24, 40, 74, 0.12)",
-    "--text": "#18284a",
-    "--muted": "#6c6d79",
-    "--shadow": "0 18px 48px rgba(24, 40, 74, 0.08)"
-  } as CSSProperties;
+  // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <section className="immersive-shell discover-shell golobe-shell" style={themeStyle}>
-      <div className="discover-topbar golobe-topbar">
-        <nav className="golobe-service-nav">
-          {publicNavLinks.map((item) => (
-            <Link className="golobe-service-link" href={item.href} key={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <TudorsStudioLogo className="discover-brand-lockup golobe-brand-lockup" variant="header" />
-        <nav className="discover-nav-tabs golobe-category-tabs">
-          <Link className={`discover-nav-tab ${mode === "home" ? "active" : ""}`} href="/">
-            Все
-          </Link>
-          {categoryCards.slice(0, 4).map((item) => (
-            <Link
-              className={`discover-nav-tab ${currentVertical === item.vertical ? "active" : ""}`}
-              href={`/categories/${item.vertical}`}
-              key={item.vertical}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="discover-topbar-actions golobe-topbar-actions">
-          <Link className="manager-link discover-manager-link" href="/manager/login">
-            Вход для менеджера
-          </Link>
-        </div>
-      </div>
+    <div className="studio">
 
-      {mode === "category" ? (
-        <div className="category-crumbs">
-          <Link className="toolbar-button" href="/">
-            Все категории
+      {/* ── TOP NAV ── */}
+      <header className="s-nav">
+        <div className="s-nav-inner">
+          <Link className="s-brand" href="/">
+            <span className="s-brand-mark">TS</span>
+            <span>
+              <span className="s-brand-name">Tudors Studio</span>
+              <span className="s-brand-sub">Площадки и пространства</span>
+            </span>
           </Link>
-          <span className="category-crumb-current">
-            {currentVertical === "all" ? "Все объекты" : verticalLabels[currentVertical]}
+
+          <nav className="s-tabs">
+            <Link className={`s-tab ${mode === "home" ? "active" : ""}`} href="/">
+              Все
+            </Link>
+            {allVerticalOptions.slice(0, 4).map((v) => (
+              <Link
+                className={`s-tab ${currentVertical === v ? "active" : ""}`}
+                href={`/categories/${v}`}
+                key={v}
+              >
+                {verticalLabels[v]}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="s-nav-actions">
+            <Link className="s-btn-ghost" href="/manager/login">
+              Войти
+            </Link>
+            <Link className="s-btn-gold" href="/manager/login">
+              Разместить объект
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* ── BREADCRUMBS ── */}
+      {mode === "category" ? (
+        <div className="s-crumbs">
+          <Link className="s-crumb-link" href="/">Все категории</Link>
+          <span className="s-crumb-sep">›</span>
+          <span className="s-crumb-current">
+            {currentVertical === "all" ? "Все объекты" : verticalLabels[currentVertical as VenueVertical]}
           </span>
         </div>
       ) : null}
 
-      <section className={`discover-hero golobe-hero ${mode === "category" ? "discover-hero-compact" : ""}`} style={{ backgroundImage: heroVenue?.preview }}>
-        <div className="discover-hero-overlay" />
-        <div className="discover-hero-content golobe-hero-content">
+      {/* ── HERO ── */}
+      <section className={`s-hero ${mode !== "home" ? "s-hero-compact" : ""}`}>
+        <div
+          className="s-hero-bg"
+          style={heroVenue?.preview ? { backgroundImage: heroVenue.preview } : undefined}
+        />
+        <div className="s-hero-overlay" />
+
+        <div className="s-hero-body">
           {mode === "home" ? (
-            <div className="golobe-hero-copy">
-              <span className="card-label">Tudors Studio</span>
-              <h1>Найди место для встречи, отдыха или события</h1>
-              <p>Выбирай объект, смотри 360-тур и отправляй бронь внутри сцены.</p>
+            <div className="s-hero-copy">
+              <div className="s-hero-eyebrow">Tudors Studio</div>
+              <h1 className="s-hero-title">
+                Современный выбор площадок для встреч, отдыха и событий
+              </h1>
+              <p className="s-hero-sub">
+                Сравнивайте места по атмосфере, смотрите 360-тур и оставляйте заявку без лишних шагов.
+              </p>
+              <ul className="s-hero-highlights">
+                {heroHighlights.map((hl) => (
+                  <li className="s-hero-hl" key={hl}>{hl}</li>
+                ))}
+              </ul>
+              <a className="s-hero-cta" href="#results-section">
+                Смотреть варианты
+              </a>
             </div>
           ) : (
-            <div className="discover-hero-label golobe-hero-label">
-              <span className="card-label">{mode === "search" ? "Результаты" : "Категория"}</span>
-              <strong>
+            <div className="s-hero-label">
+              <div className="s-hero-label-eyebrow">
+                {mode === "search" ? "Результаты поиска" : "Категория"}
+              </div>
+              <h1 className="s-hero-label-title">
                 {mode === "search"
                   ? `${venues.length} вариантов по вашему запросу`
                   : verticalLabels[currentVertical as VenueVertical]}
-              </strong>
+              </h1>
             </div>
           )}
-        </div>
 
-        <form
-          className="discover-search-panel golobe-search-panel"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitSearch();
-          }}
-        >
-          <div className="discover-search-row discover-search-row-main golobe-search-main">
-            <label className="discover-search-field discover-search-field-wide">
-              <span>Где</span>
-              <input
-                className="search-input"
-                onChange={(event) => setSearchDraft(event.target.value)}
-                placeholder="Ресторан, квартира, вилла, площадка или коммерция"
-                type="text"
-                value={searchDraft}
-              />
-            </label>
-            <button className="primary-button" type="submit">
-              Найти
-            </button>
-          </div>
-
-          <div className="discover-search-row discover-search-row-filters golobe-search-filters">
-            {mode === "home" ? (
-              <label className="discover-search-field">
-                <span>Категория</span>
-                <select
-                  className="compact-select"
-                  onChange={(event) => setVerticalDraft(event.target.value as "all" | VenueVertical)}
-                  value={verticalDraft}
-                >
-                  <option value="all">Все категории</option>
-                  {verticalOptions
-                    .filter((option) => option !== "all")
-                    .map((option) => (
-                      <option key={option} value={option}>
-                        {verticalLabels[option]}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            ) : (
-              <div className="category-filter-lock">
-                <span>Категория</span>
-                <strong>{verticalLabels[currentVertical as VenueVertical]}</strong>
+          {/* Search panel */}
+          <form
+            className="s-search"
+            onSubmit={(e) => { e.preventDefault(); submitSearch(); }}
+          >
+            <div className="s-search-row">
+              <div className="s-search-field wide">
+                <label className="s-search-label">Где</label>
+                <input
+                  className="s-search-input"
+                  onChange={(e) => setSearchDraft(e.target.value)}
+                  placeholder="Ресторан, квартира, вилла, площадка..."
+                  type="text"
+                  value={searchDraft}
+                />
               </div>
-            )}
-              <label className="discover-search-field">
-              <span>Формат</span>
-              <select className="compact-select" onChange={(event) => setTypeDraft(event.target.value)} value={typeDraft}>
-                {venueTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type === "all" ? "Любой формат" : type}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="discover-search-field">
-              <span>Статус</span>
-              <select
-                className="compact-select"
-                onChange={(event) => setAvailabilityDraft(event.target.value as VenueSearchFilters["availability"])}
-                value={availabilityDraft}
-              >
-                <option value="all">Любая доступность</option>
-                <option value="available">Свободно</option>
-                <option value="busy">Почти занято</option>
-              </select>
-            </label>
-            <label className="discover-search-field">
-              <span>Время</span>
-              <select className="compact-select" onChange={(event) => setTimeDraft(event.target.value)} value={timeDraft}>
-                {timeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option === "all" ? "Любое время" : option}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </form>
+              <button className="s-search-submit" type="submit">
+                Найти
+              </button>
+            </div>
+
+            <div className="s-search-row filters-row">
+              {mode === "home" ? (
+                <div className="s-search-field">
+                  <label className="s-search-label">Категория</label>
+                  <select
+                    className="s-search-select"
+                    onChange={(e) => setVerticalDraft(e.target.value as "all" | VenueVertical)}
+                    value={verticalDraft}
+                  >
+                    <option value="all">Все категории</option>
+                    {allVerticalOptions.map((v) => (
+                      <option key={v} value={v}>{verticalLabels[v]}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="s-search-lock">
+                  <span className="s-search-lock-label">Категория</span>
+                  <strong className="s-search-lock-value">
+                    {verticalLabels[currentVertical as VenueVertical]}
+                  </strong>
+                </div>
+              )}
+              <div className="s-search-field">
+                <label className="s-search-label">Формат</label>
+                <select
+                  className="s-search-select"
+                  onChange={(e) => setTypeDraft(e.target.value)}
+                  value={typeDraft}
+                >
+                  {venueTypes.map((t) => (
+                    <option key={t} value={t}>{t === "all" ? "Любой формат" : t}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="s-search-field">
+                <label className="s-search-label">Статус</label>
+                <select
+                  className="s-search-select"
+                  onChange={(e) => setAvailabilityDraft(e.target.value as VenueSearchFilters["availability"])}
+                  value={availabilityDraft}
+                >
+                  <option value="all">Любая доступность</option>
+                  <option value="available">Свободно</option>
+                  <option value="busy">Почти занято</option>
+                </select>
+              </div>
+              <div className="s-search-field">
+                <label className="s-search-label">Время</label>
+                <select
+                  className="s-search-select"
+                  onChange={(e) => setTimeDraft(e.target.value)}
+                  value={timeDraft}
+                >
+                  {timeOptions.map((t) => (
+                    <option key={t} value={t}>{t === "all" ? "Любое время" : t}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </form>
+        </div>
       </section>
 
-      {mode === "home" ? (
-        <section className="discover-section golobe-recent-section">
-          <div className="discover-section-head">
-            <h2>Недавние просмотры</h2>
+      {/* ── RECENT SECTION (home only) ── */}
+      {mode === "home" && venues.length > 0 ? (
+        <section className="s-section">
+          <div className="s-section-head">
+            <h2 className="s-section-title">Популярные места</h2>
           </div>
-          <div className="golobe-recent-grid">
-            {recentVenues.map((item) => (
-              <button className="golobe-recent-card" key={item.id} onClick={() => selectVenue(item.id)} type="button">
-                <div className="golobe-recent-thumb" style={{ backgroundImage: item.preview }} />
+          <div className="s-recent-grid">
+            {venues.slice(0, 4).map((v) => (
+              <button
+                className="s-recent-card"
+                key={v.id}
+                onClick={() => selectVenue(v.id)}
+                type="button"
+              >
+                <div
+                  className="s-recent-thumb"
+                  style={v.preview ? { backgroundImage: v.preview } : undefined}
+                />
                 <div>
-                  <strong>{item.name}</strong>
-                  <span>{item.city}</span>
+                  <span className="s-recent-name">{v.name}</span>
+                  <span className="s-recent-city">{v.city}</span>
                 </div>
               </button>
             ))}
@@ -723,431 +676,547 @@ export function TourExplorer({
         </section>
       ) : null}
 
-      {mode === "home" ? (
-        <section className="discover-section golobe-plan-section">
-          <div className="discover-section-head">
-            <h2>{currentVertical === "all" ? "Подбери подходящее место" : verticalLabels[currentVertical]}</h2>
-            <div className="search-results-meta">
+      {/* ── FEATURED SECTION ── */}
+      {mode === "home" && venues.length > 0 ? (
+        <section className="s-section">
+          <div className="s-section-head">
+            <h2 className="s-section-title">Подбери подходящее место</h2>
+            <span className="s-section-meta">
               Найдено: <strong>{venues.length}</strong>
-            </div>
+            </span>
           </div>
-          <div className="discover-feature-grid golobe-feature-grid">
-            {destinationVenues.map((item) => (
-              <button className="discover-feature-card" key={item.id} onClick={() => selectVenue(item.id)} type="button">
-                <div className="discover-feature-image" style={{ backgroundImage: item.preview }} />
-                <div className="discover-feature-copy">
-                  <strong>{item.name}</strong>
-                  <p>{item.summary}</p>
-                  <div className="facts">
-                    <span className="fact">{item.price}</span>
-                    <span className="fact">{getVenueAvailabilityLabel(item.availability)}</span>
+          <div className="s-feature-grid">
+            {venues.slice(0, 3).map((v) => (
+              <button
+                className="s-feature-card"
+                key={v.id}
+                onClick={() => selectVenue(v.id)}
+                type="button"
+              >
+                <div
+                  className="s-feature-image"
+                  style={v.preview ? { backgroundImage: v.preview } : undefined}
+                />
+                <div className="s-feature-body">
+                  <span className="s-feature-name">{v.name}</span>
+                  <p className="s-feature-summary">{v.summary}</p>
+                  <div className="s-card-facts">
+                    <span className="s-card-fact s-card-price">{v.price}</span>
+                    <span className={`s-status s-status-${v.availability}`}>
+                      {getVenueAvailabilityLabel(v.availability)}
+                    </span>
                   </div>
                 </div>
               </button>
             ))}
           </div>
         </section>
-      ) : (
-        <section className="discover-section golobe-plan-section">
-          <div className="discover-section-head">
-            <h2>Лучшие варианты</h2>
-            <div className="search-results-meta">
-              Найдено: <strong>{venues.length}</strong>
-            </div>
-          </div>
-          <div className="discover-featured-grid golobe-featured-grid">
-            {featuredCategoryVenues.map((item) => (
-              <button className="discover-featured-card" key={item.id} onClick={() => selectVenue(item.id)} type="button">
-                <div className="discover-featured-image" style={{ backgroundImage: item.preview }} />
-                <div className="discover-featured-copy">
-                  <strong>{item.name}</strong>
-                  <span>{item.city}</span>
-                  <div className="facts">
-                    <span className="fact">{item.price}</span>
-                    <span className="fact">{item.type}</span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      ) : null}
 
-      <section className="discover-section golobe-results-section" id="results-section">
-        <div className="discover-section-head">
-          <h2>
+      {/* ── MAIN RESULTS ── */}
+      <section className="s-section" id="results-section">
+        <div className="s-section-head">
+          <h2 className="s-section-title">
             {mode === "category"
               ? "Все объекты категории"
               : mode === "search"
                 ? "Результаты поиска"
                 : "Подходящие пространства"}
           </h2>
+          <span className="s-section-meta">
+            Найдено: <strong>{venues.length}</strong>
+          </span>
         </div>
-        <div className={`golobe-results-shell ${mode === "home" ? "home-mode" : ""}`}>
+
+        <div className={`s-results-shell ${mode === "home" ? "home-mode" : ""}`}>
+          {/* Filter sidebar for search/category */}
           {mode !== "home" ? (
-            <aside className="golobe-filter-panel">
-              <div className="golobe-filter-card">
-                <strong>Filters</strong>
-                <label className="discover-search-field">
-                  <span>Категория</span>
+            <aside className="s-filter-sidebar">
+              <div className="s-filter-card">
+                <span className="s-filter-title">Фильтры</span>
+                <div className="s-filter-field">
+                  <label className="s-filter-label">Категория</label>
                   <select
-                    className="compact-select"
-                    onChange={(event) => setVerticalDraft(event.target.value as "all" | VenueVertical)}
+                    className="s-filter-select"
+                    onChange={(e) => setVerticalDraft(e.target.value as "all" | VenueVertical)}
                     value={mode === "category" ? currentVertical : verticalDraft}
                   >
                     <option value="all">Все категории</option>
-                    {verticalOptions
-                      .filter((option) => option !== "all")
-                      .map((option) => (
-                        <option key={option} value={option}>
-                          {verticalLabels[option]}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label className="discover-search-field">
-                  <span>Формат</span>
-                  <select className="compact-select" onChange={(event) => setTypeDraft(event.target.value)} value={typeDraft}>
-                    {venueTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type === "all" ? "Любой формат" : type}
-                      </option>
+                    {allVerticalOptions.map((v) => (
+                      <option key={v} value={v}>{verticalLabels[v]}</option>
                     ))}
                   </select>
-                </label>
-                <label className="discover-search-field">
-                  <span>Статус</span>
+                </div>
+                <div className="s-filter-field">
+                  <label className="s-filter-label">Формат</label>
                   <select
-                    className="compact-select"
-                    onChange={(event) => setAvailabilityDraft(event.target.value as VenueSearchFilters["availability"])}
+                    className="s-filter-select"
+                    onChange={(e) => setTypeDraft(e.target.value)}
+                    value={typeDraft}
+                  >
+                    {venueTypes.map((t) => (
+                      <option key={t} value={t}>{t === "all" ? "Любой формат" : t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="s-filter-field">
+                  <label className="s-filter-label">Статус</label>
+                  <select
+                    className="s-filter-select"
+                    onChange={(e) => setAvailabilityDraft(e.target.value as VenueSearchFilters["availability"])}
                     value={availabilityDraft}
                   >
                     <option value="all">Любая доступность</option>
                     <option value="available">Свободно</option>
                     <option value="busy">Почти занято</option>
                   </select>
-                </label>
-                <label className="discover-search-field">
-                  <span>Время</span>
-                  <select className="compact-select" onChange={(event) => setTimeDraft(event.target.value)} value={timeDraft}>
-                    {timeOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option === "all" ? "Любое время" : option}
-                      </option>
+                </div>
+                <div className="s-filter-field">
+                  <label className="s-filter-label">Время</label>
+                  <select
+                    className="s-filter-select"
+                    onChange={(e) => setTimeDraft(e.target.value)}
+                    value={timeDraft}
+                  >
+                    {timeOptions.map((t) => (
+                      <option key={t} value={t}>{t === "all" ? "Любое время" : t}</option>
                     ))}
                   </select>
-                </label>
-                <button className="primary-button" onClick={submitSearch} type="button">
+                </div>
+                <button className="s-filter-submit" onClick={submitSearch} type="button">
                   Обновить поиск
                 </button>
               </div>
             </aside>
           ) : null}
-          <div className={`search-results-grid discover-results-grid golobe-results-list ${mode !== "home" ? "list-mode" : ""}`}>
+
+          {/* Venue cards */}
+          <div className={`s-results-grid ${mode !== "home" ? "list-mode" : ""}`}>
             {venues.length > 0 ? (
-              venues.map((item) => (
+              venues.map((v) => (
                 <button
-                  className={`search-result-card discover-result-card golobe-result-card ${item.id === venue?.id && isVenueOpen ? "active" : ""}`}
-                  key={item.id}
-                  onClick={() => selectVenue(item.id)}
+                  className={`s-card ${v.id === venue?.id && isVenueOpen ? "active" : ""}`}
+                  key={v.id}
+                  onClick={() => selectVenue(v.id)}
                   type="button"
                 >
-                  <div className="search-result-preview discover-result-preview golobe-result-preview" style={{ backgroundImage: item.preview }}>
-                    <div className="search-result-preview-overlay">
-                      <span className="preview-city">{item.city}</span>
-                      <span className={`status-badge status-${item.availability}`}>
-                        {getVenueAvailabilityLabel(item.availability)}
+                  <div
+                    className="s-card-image"
+                    style={v.preview ? { backgroundImage: v.preview } : undefined}
+                  >
+                    <div className="s-card-image-overlay">
+                      <span className="s-card-city">{v.city}</span>
+                      <span className={`s-status s-status-${v.availability}`}>
+                        {getVenueAvailabilityLabel(v.availability)}
                       </span>
                     </div>
                   </div>
-                  <div className="search-result-content golobe-result-content">
-                    <div className="search-result-head">
-                      <div>
-                        <div className="result-topline">
-                          <span className="result-vertical-chip">{verticalLabels[item.vertical]}</span>
-                        </div>
-                        <strong>{item.name}</strong>
-                        <span className="result-subtitle">{item.type}</span>
-                      </div>
-                      <span className="open-tour-link">Открыть</span>
+                  <div className="s-card-body">
+                    <div className="s-card-top">
+                      <span className="s-card-chip">{verticalLabels[v.vertical]}</span>
+                      <span className="s-card-cta">Смотреть тур →</span>
                     </div>
-                    <p>{item.summary}</p>
-                    <div className="facts">
-                      <span className="fact">До {item.capacity} гостей</span>
-                      <span className="fact">{item.price}</span>
-                      <span className="fact">Бронь: {item.averageBookingLead}</span>
+                    <span className="s-card-name">{v.name}</span>
+                    <span className="s-card-type">{v.type}</span>
+                    <p className="s-card-summary">{v.summary}</p>
+                    <div className="s-card-facts">
+                      <span className="s-card-fact">До {v.capacity} гостей</span>
+                      <span className="s-card-fact s-card-price">{v.price}</span>
+                      <span className="s-card-fact">Бронь: {v.averageBookingLead}</span>
                     </div>
-                    {mode !== "home" ? (
-                      <div className="golobe-result-actions">
-                        <span className="golobe-price-note">от</span>
-                        <strong>{item.price}</strong>
-                      </div>
-                    ) : null}
                   </div>
                 </button>
               ))
             ) : (
-              <div className="search-empty-state">
-                <strong>Ничего не найдено</strong>
-                <p>Измени параметры и нажми `Найти`, чтобы получить новую подборку.</p>
+              <div className="s-empty">
+                <span className="s-empty-title">Ничего не найдено</span>
+                <p className="s-empty-text">
+                  Измени параметры поиска, чтобы получить новую подборку.
+                </p>
               </div>
             )}
           </div>
         </div>
       </section>
 
-      <footer className="discover-footer golobe-footer">
-        <div className="discover-footer-grid">
-          {footerColumns.map((column) => (
-            <div className="discover-footer-column" key={column.title}>
-              <strong>{column.title}</strong>
-              {column.items.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-            </div>
-          ))}
-        </div>
-        <div className="discover-footer-bottom">
-          <span>© 2026 Tudors Studio</span>
-          <span>Русский (RU)</span>
-          <span>UZS</span>
+      {/* ── FOOTER ── */}
+      <footer className="s-footer">
+        <div className="s-footer-inner">
+          <div className="s-footer-cols">
+            {footerColumns.map((col) => (
+              <div key={col.title}>
+                <span className="s-footer-col-title">{col.title}</span>
+                {col.items.map((item) => (
+                  <span className="s-footer-link" key={item}>{item}</span>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="s-footer-bottom">
+            <span>© 2026 Tudors Studio</span>
+            <span>Русский (RU)</span>
+            <span>UZS</span>
+          </div>
         </div>
       </footer>
 
+      {/* ── VENUE MODAL ── */}
       {hasOpenedVenue && venue && scene ? (
-        <div className={`venue-view-shell ${isVenueOpen ? "open" : "closed"}`}>
-          <div className="venue-view-backdrop" onClick={() => setIsVenueOpen(false)} />
-          <div className="venue-view-panel">
-            <div className="venue-view-header">
-              <div className="stage-copy">
-                <span className="card-label">{verticalLabels[venue.vertical]}</span>
-                <h1>{venue.name}</h1>
-                <p>
-                  {scene.title} · {scene.floorPlanLabel}
-                </p>
+        <div className={`s-modal ${isVenueOpen ? "open" : ""}`}>
+          <div className="s-modal-backdrop" onClick={() => setIsVenueOpen(false)} />
+          <div className="s-modal-panel">
+
+            {/* Modal Header */}
+            <div className="s-modal-header">
+              <div className="s-modal-identity">
+                <span className="s-modal-eyebrow">{verticalLabels[venue.vertical]}</span>
+                <h2 className="s-modal-name">{venue.name}</h2>
+                <span className="s-modal-scene-info">
+                  {scene.title}
+                  {(scene as { floorPlanLabel?: string }).floorPlanLabel
+                    ? ` · ${(scene as { floorPlanLabel?: string }).floorPlanLabel}`
+                    : null}
+                </span>
               </div>
-              <div className="stage-actions">
-                <button className="toolbar-button" onClick={() => moveScene(-1)} type="button">
-                  Назад
+              <div className="s-modal-controls">
+                <button
+                  className="s-modal-btn"
+                  onClick={() => moveScene(-1)}
+                  type="button"
+                >
+                  ← Назад
                 </button>
-                <button className="toolbar-button" onClick={() => moveScene(1)} type="button">
-                  Вперед
+                <button
+                  className="s-modal-btn"
+                  onClick={() => moveScene(1)}
+                  type="button"
+                >
+                  Вперёд →
                 </button>
-                <button className="toolbar-button" onClick={() => setIsVenueOpen(false)} type="button">
-                  Закрыть
+                <button
+                  className="s-modal-close"
+                  onClick={() => setIsVenueOpen(false)}
+                  type="button"
+                  aria-label="Закрыть"
+                >
+                  ×
                 </button>
               </div>
             </div>
 
-            <div className="venue-view-layout">
-              <div className="panorama-stage venue-view-stage">
-                <div className="panorama-frame immersive-frame venue-open-frame">
+            {/* Modal Body */}
+            <div className="s-modal-body">
+              <div className="s-panorama-stage">
+                <div className="s-panorama-frame">
                   <PanoramaViewer
                     onObjectSelect={selectHotspot}
                     onSceneChange={(nextSceneId) => {
-                      if (nextSceneId !== scene.id) {
-                        selectScene(nextSceneId);
-                      }
+                      if (nextSceneId !== scene.id) selectScene(nextSceneId);
                     }}
                     scene={scene}
                     selectedHotspotId={selectedHotspotId}
                     venue={venue}
                   />
-                  <div className="viewer-overlay viewer-overlay-prod">
-                    <div className="viewer-chip">{sceneIndex + 1} / {venue.scenes.length}</div>
-                    <div className="viewer-overlay-copy">
-                      <p>{scene.description}</p>
-                      <span>Выбери точку в сцене и оформи бронь или аренду в этом же окне</span>
+
+                  {/* Panorama overlay info */}
+                  <div className="s-panorama-overlay">
+                    <div className="s-panorama-counter">
+                      {sceneIndex + 1} / {venue.scenes.length}
                     </div>
+                    <p className="s-panorama-desc">{scene.description}</p>
+                    <p className="s-panorama-hint">
+                      Нажми на точку в сцене, чтобы открыть бронирование
+                    </p>
                   </div>
+
+                  {/* HUD backdrop */}
                   {selectedHotspot ? (
-                    <>
-                      <div
-                        className="scene-hud-backdrop"
-                        onClick={() => {
-                          setSelectedHotspotId(null);
-                          setPanelMode(null);
-                        }}
-                      />
-                      <div className="scene-hud-minimal">
-                        <div className="scene-hud-header">
-                          <div className="scene-hud-focus">
-                            <span className="card-label">Выбрано</span>
-                            <h3>{selectedHotspot.heading ?? selectedHotspot.label}</h3>
-                          </div>
-                          <button
-                            className="hud-close-button"
-                            onClick={() => {
-                              setSelectedHotspotId(null);
-                              setPanelMode(null);
-                            }}
-                            type="button"
-                          >
-                            ×
-                          </button>
+                    <div
+                      className="s-hud-backdrop"
+                      style={{ position: "fixed", inset: 0, zIndex: 208 } as CSSProperties}
+                      onClick={() => {
+                        setSelectedHotspotId(null);
+                        setPanelMode(null);
+                      }}
+                    />
+                  ) : null}
+
+                  {/* HUD Panel */}
+                  {selectedHotspot ? (
+                    <div
+                      className="s-hud"
+                      style={isMobileHud ? {
+                        position: "fixed",
+                        right: 0,
+                        left: 0,
+                        bottom: 0,
+                        top: "auto",
+                        width: "100%",
+                        transform: "none",
+                        borderRadius: 0,
+                        maxHeight: "72vh",
+                        zIndex: 210
+                      } as CSSProperties : {
+                        position: "fixed",
+                        right: 0,
+                        left: "auto",
+                        top: 60,
+                        bottom: 0,
+                        width: 360,
+                        maxHeight: "none",
+                        transform: "none",
+                        zIndex: 210
+                      } as CSSProperties}
+                    >
+                      <div className="s-hud-header">
+                        <div>
+                          <div className="s-hud-eyebrow">Выбрано</div>
+                          <h3 className="s-hud-title">
+                            {selectedHotspot.heading ?? selectedHotspot.label}
+                          </h3>
                         </div>
+                        <button
+                          className="s-hud-close"
+                          onClick={() => {
+                            setSelectedHotspotId(null);
+                            setPanelMode(null);
+                          }}
+                          type="button"
+                        >
+                          ×
+                        </button>
+                      </div>
 
-                        <div className="scene-hud-summary">
-                          <div className="facts">
-                          {selectedHotspot.status ? (
-                            <span className={`status-badge status-${getBookingPointStatus(selectedHotspot.status)}`}>
-                              {getStatusLabel(selectedHotspot.status, selectedHotspot.kind)}
-                            </span>
-                          ) : null}
-                            {selectedHotspot.capacity ? <span className="fact">{selectedHotspot.capacity}</span> : null}
-                            {selectedHotspot.deposit ? <span className="fact">{selectedHotspot.deposit}</span> : null}
-                            {selectedHotspot.minSpend ? <span className="fact">{selectedHotspot.minSpend}</span> : null}
-                          </div>
-                        </div>
+                      <div className="s-hud-meta">
+                        {selectedHotspot.status ? (
+                          <span className={`s-status s-status-${getBookingPointStatus(selectedHotspot.status)}`}>
+                            {getStatusLabel(selectedHotspot.status, selectedHotspot.kind)}
+                          </span>
+                        ) : null}
+                        {selectedHotspot.capacity ? (
+                          <span className="s-card-fact">{selectedHotspot.capacity}</span>
+                        ) : null}
+                        {selectedHotspot.deposit ? (
+                          <span className="s-card-fact">{selectedHotspot.deposit}</span>
+                        ) : null}
+                        {selectedHotspot.minSpend ? (
+                          <span className="s-card-fact">{selectedHotspot.minSpend}</span>
+                        ) : null}
+                      </div>
 
-                        <div className="process-inline-note">{processHint}</div>
+                      {processHint ? (
+                        <div className="s-hud-hint">{processHint}</div>
+                      ) : null}
 
-                        <div className="scene-hud-actions">
-                          <button
-                            className={`hud-mode-button ${panelMode !== "waitlist" ? "active" : ""}`}
-                            onClick={() => setPanelMode("book")}
-                            type="button"
-                          >
-                            Забронировать
-                          </button>
-                          <button
-                            className={`hud-mode-button ${panelMode === "waitlist" ? "active" : ""}`}
-                            onClick={() => setPanelMode("waitlist")}
-                            type="button"
-                          >
-                            Лист ожидания
-                          </button>
-                        </div>
+                      <div className="s-hud-tabs">
+                        <button
+                          className={`s-hud-tab ${panelMode !== "waitlist" ? "active" : ""}`}
+                          onClick={() => setPanelMode("book")}
+                          type="button"
+                        >
+                          Забронировать
+                        </button>
+                        <button
+                          className={`s-hud-tab ${panelMode === "waitlist" ? "active" : ""}`}
+                          onClick={() => setPanelMode("waitlist")}
+                          type="button"
+                        >
+                          Лист ожидания
+                        </button>
+                      </div>
 
-                        <div className="scene-hud-form">
-                          {panelMode === "waitlist" ? (
-                          <form className="inline-form booking-inline-form compact-form" onSubmit={handleWaitlist}>
-                            <div className="booking-grid compact-booking-grid">
-                              <input name="name" placeholder="Имя" required type="text" />
-                              <div className="phone-field-row">
-                                <select className="compact-select phone-country-select" defaultValue="+998" name="countryCode">
+                      <div className="s-hud-form">
+                        {panelMode === "waitlist" ? (
+                          <form className="s-form" onSubmit={handleWaitlist}>
+                            <div className="s-form-grid">
+                              <input
+                                className="s-form-input"
+                                name="name"
+                                placeholder="Имя"
+                                required
+                                type="text"
+                              />
+                              <div className="s-form-phone-row">
+                                <select
+                                  className="s-form-phone-code"
+                                  defaultValue="+998"
+                                  name="countryCode"
+                                >
                                   {phoneCountryCodes.map((code) => (
-                                    <option key={code} value={code}>
-                                      {code}
-                                    </option>
+                                    <option key={code} value={code}>{code}</option>
                                   ))}
                                 </select>
                                 <input
+                                  className="s-form-input"
                                   inputMode="numeric"
                                   maxLength={9}
                                   name="phoneLocal"
-                                  onInput={(event) => {
-                                    event.currentTarget.value = formatPhoneLocal(event.currentTarget.value);
+                                  onInput={(e) => {
+                                    e.currentTarget.value = formatPhoneLocal(e.currentTarget.value);
                                   }}
                                   pattern="[0-9]{7,9}"
                                   placeholder="Телефон"
                                   required
+                                  style={{ flex: 1 }}
                                   type="tel"
                                 />
                               </div>
-                              <input name="telegram" placeholder="@telegram (опционально)" type="text" />
+                              <input
+                                className="s-form-input"
+                                name="telegram"
+                                placeholder="@telegram (опционально)"
+                                type="text"
+                              />
                             </div>
-                            <button className="primary-button wide-button waitlist-submit-button" disabled={isPending} type="submit">
+                            <button
+                              className="s-form-submit"
+                              disabled={isPending}
+                              type="submit"
+                            >
                               {isPending ? "Отправка..." : "Встать в лист ожидания"}
                             </button>
                           </form>
                         ) : (
-                          <form className="inline-form booking-inline-form compact-form" onSubmit={handleBooking}>
-                            <div className="booking-grid compact-booking-grid">
-                              <input name="name" placeholder="Имя" required type="text" />
-                              <div className="phone-field-row">
-                                <select className="compact-select phone-country-select" defaultValue="+998" name="countryCode">
+                          <form className="s-form" onSubmit={handleBooking}>
+                            <div className="s-form-grid">
+                              <input
+                                className="s-form-input"
+                                name="name"
+                                placeholder="Имя"
+                                required
+                                type="text"
+                              />
+                              <div className="s-form-phone-row">
+                                <select
+                                  className="s-form-phone-code"
+                                  defaultValue="+998"
+                                  name="countryCode"
+                                >
                                   {phoneCountryCodes.map((code) => (
-                                    <option key={code} value={code}>
-                                      {code}
-                                    </option>
+                                    <option key={code} value={code}>{code}</option>
                                   ))}
                                 </select>
                                 <input
+                                  className="s-form-input"
                                   inputMode="numeric"
                                   maxLength={9}
                                   name="phoneLocal"
-                                  onInput={(event) => {
-                                    event.currentTarget.value = formatPhoneLocal(event.currentTarget.value);
+                                  onInput={(e) => {
+                                    e.currentTarget.value = formatPhoneLocal(e.currentTarget.value);
                                   }}
                                   pattern="[0-9]{7,9}"
                                   placeholder="Телефон"
                                   required
+                                  style={{ flex: 1 }}
                                   type="tel"
                                 />
                               </div>
-                              <input name="telegram" placeholder="@telegram (опционально)" type="text" />
                               <input
+                                className="s-form-input"
+                                name="telegram"
+                                placeholder="@telegram (опционально)"
+                                type="text"
+                              />
+                              <input
+                                className="s-form-input"
                                 min={getTodayDateValue()}
                                 name="date"
-                                onChange={(event) => setBookingDate(event.target.value)}
+                                onChange={(e) => setBookingDate(e.target.value)}
                                 required
                                 type="date"
                                 value={bookingDate}
                               />
-                              <input max="5000" min="1" name="guests" placeholder="Гостей" required type="number" />
+                              <input
+                                className="s-form-input"
+                                max="5000"
+                                min="1"
+                                name="guests"
+                                placeholder="Кол-во гостей"
+                                required
+                                type="number"
+                              />
                             </div>
-                            <div className="slot-picker-shell">
-                              <div className="slot-picker-head">
-                                <strong>Доступные слоты</strong>
-                                <span>
+
+                            {/* Slot picker */}
+                            <div className="s-slot-picker">
+                              <div className="s-slot-head">
+                                <span className="s-slot-head-title">Доступные слоты</span>
+                                <span className="s-slot-head-count">
                                   {isAvailabilityLoading
                                     ? "Загружаем..."
                                     : availableSlotCount > 0
                                       ? `${availableSlotCount} свободно`
-                                      : "Свободных слотов нет"}
+                                      : "Нет свободных"}
                                 </span>
                               </div>
-                              <div className="slot-grid">
+                              <div className="s-slot-grid">
                                 {availabilitySlots.length > 0 ? (
                                   availabilitySlots.map((slot) => (
                                     <button
-                                      className={`slot-chip status-${slot.status} ${selectedSlotTime === slot.time ? "active" : ""}`}
+                                      className={`s-slot ${slot.status} ${selectedSlotTime === slot.time ? "selected" : ""}`}
                                       disabled={slot.status === "unavailable"}
                                       key={slot.time}
                                       onClick={() => setSelectedSlotTime(slot.time)}
                                       type="button"
                                     >
-                                      <strong>{slot.label}</strong>
-                                      <span>{getSlotStatusText(slot, selectedHotspot.kind)}</span>
+                                      <span className="s-slot-time">{slot.label}</span>
+                                      <span className="s-slot-label">
+                                        {getSlotStatusText(slot)}
+                                      </span>
                                     </button>
                                   ))
                                 ) : (
-                                  <div className="slot-empty-state">На эту дату слоты пока не найдены.</div>
+                                  <span className="s-slot-empty">
+                                    Слоты не найдены для этой даты
+                                  </span>
                                 )}
                               </div>
                             </div>
-                            <button className="primary-button wide-button" disabled={isPending} type="submit">
-                              {isPending ? "Отправка..." : "Отправить"}
+
+                            <button
+                              className="s-form-submit"
+                              disabled={isPending}
+                              type="submit"
+                            >
+                              {isPending ? "Отправка..." : "Отправить заявку"}
                             </button>
                           </form>
-                          )}
-                        </div>
+                        )}
                       </div>
-                    </>
+                    </div>
                   ) : null}
                 </div>
 
-                <div className="scene-strip">
-                  {venue.scenes.map((item) => (
+                {/* Scene strip */}
+                <div className="s-scene-strip">
+                  {venue.scenes.map((s) => (
                     <button
-                      className={`scene-chip ${item.id === scene.id ? "active" : ""}`}
-                      key={item.id}
-                      onClick={() => selectScene(item.id)}
+                      className={`s-scene-chip ${s.id === scene.id ? "active" : ""}`}
+                      key={s.id}
+                      onClick={() => selectScene(s.id)}
                       type="button"
                     >
-                      <strong>{item.title}</strong>
-                      <span>{item.floorPlanLabel}</span>
+                      <span className="s-scene-chip-name">{s.title}</span>
+                      {(s as { floorPlanLabel?: string }).floorPlanLabel ? (
+                        <span className="s-scene-chip-floor">
+                          {(s as { floorPlanLabel?: string }).floorPlanLabel}
+                        </span>
+                      ) : null}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       ) : null}
 
-      {toast ? <div className={`toast toast-${toast.kind}`}>{toast.message}</div> : null}
-    </section>
+      {/* ── TOAST ── */}
+      {toast ? (
+        <div className={`s-toast ${toast.kind}`}>{toast.message}</div>
+      ) : null}
+
+    </div>
   );
 }

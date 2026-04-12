@@ -1,9 +1,28 @@
-.next
-node_modules
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+dist/
+
+# Environment variables (keep .env.example)
 .env
 .env.local
-dist
-coverage
-*.log
-generated
+.env.*.local
+
+# TypeScript build info
 tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Generated files
+generated/
+coverage/
+
+# macOS
+.DS_Store
+**/.DS_Store

@@ -35,14 +35,12 @@ export default async function CategoryPage({
   const companyThemes = await getCompanyThemes();
 
   return (
-    <main className="page-shell page-shell-immersive">
-      <TourExplorer
-        companyTheme={companyThemes[0]}
-        initialFilters={filters}
-        initialVertical={vertical as VenueVertical}
-        mode="category"
-        venues={venues}
-      />
-    </main>
+    <TourExplorer
+      companyTheme={companyThemes[0]}
+      initialFilters={filters}
+      initialVertical={vertical as VenueVertical}
+      mode="category"
+      venues={venues}
+    />
   );
 }

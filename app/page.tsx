@@ -15,8 +15,6 @@ export default async function HomePage() {
   const venues = await fetchPublicVenuesFromBackend(filters);
 
   return (
-    <main className="page-shell page-shell-immersive">
-      <TourExplorer companyTheme={companyThemes[0]} initialFilters={filters} venues={venues} />
-    </main>
+    <TourExplorer companyTheme={companyThemes[0]} initialFilters={filters} venues={venues} />
   );
 }

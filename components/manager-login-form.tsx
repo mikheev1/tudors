@@ -39,32 +39,51 @@ export function ManagerLoginForm() {
   }
 
   return (
-    <form className="admin-login-form" onSubmit={handleSubmit}>
-      <div className="admin-login-head">
-        <span className="card-label">Tudors Studio</span>
-        <h1>Вход</h1>
-        <p>Используйте логин и пароль вашей роли для доступа к рабочему кабинету.</p>
+    <form onSubmit={handleSubmit}>
+      <div className="m-login-eyebrow">Рабочий кабинет</div>
+      <h1 className="m-login-title">Вход</h1>
+      <p className="m-login-desc">Используйте логин и пароль вашей роли для доступа к панели управления.</p>
+
+      <div className="m-login-fields">
+        <div className="m-field">
+          <label className="m-field-label" htmlFor="login-username">Логин</label>
+          <input
+            autoComplete="username"
+            className="m-input"
+            id="login-username"
+            name="username"
+            placeholder="Введите логин"
+            required
+            type="text"
+          />
+        </div>
+        <div className="m-field">
+          <label className="m-field-label" htmlFor="login-password">Пароль</label>
+          <input
+            autoComplete="current-password"
+            className="m-input"
+            id="login-password"
+            name="password"
+            placeholder="Введите пароль"
+            required
+            type="password"
+          />
+        </div>
       </div>
 
-      <div className="inline-form admin-login-fields">
-        <input autoComplete="username" name="username" placeholder="Логин" required type="text" />
-        <input
-          autoComplete="current-password"
-          name="password"
-          placeholder="Пароль"
-          required
-          type="password"
-        />
-      </div>
+      {error ? <div className="m-login-error">{error}</div> : null}
 
-      {error ? <div className="admin-login-error">{error}</div> : null}
-
-      <button className="primary-button wide-button" disabled={isPending} type="submit">
-        {isPending ? "Вход..." : "Войти"}
+      <button
+        className="m-btn m-btn-gold"
+        disabled={isPending}
+        style={{ width: "100%", justifyContent: "center", height: 46, fontSize: 11 }}
+        type="submit"
+      >
+        {isPending ? "Выполняется вход..." : "Войти"}
       </button>
 
-      <div className="admin-login-hint">
-        Demo: `superadmin / superadmin123`, `city.manager / demo123`
+      <div className="m-login-hint">
+        Demo: superadmin / superadmin123 · city.manager / demo123
       </div>
     </form>
   );
