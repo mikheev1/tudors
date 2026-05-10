@@ -74,6 +74,7 @@ model Venue {
   currency       String          @default("USD")
   capacityMin    Int?
   capacityMax    Int?
+  floorPlan      Json?
   status         VenueStatus     @default(DRAFT)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt

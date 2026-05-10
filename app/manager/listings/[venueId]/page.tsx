@@ -33,13 +33,10 @@ export default async function ManagerListingEditorPage({
   }
 
   return (
-    <main className="page-shell page-shell-immersive">
-      <div className="listing-editor-page-head">
-        <Link className="manager-header-action listing-back-action" href="/manager">
-          <span className="manager-header-action-icon" aria-hidden="true">
-            ←
-          </span>
-          <span>Назад в панель</span>
+    <main className="page-shell page-shell-immersive manager-listing-page">
+      <div className="manager-listing-topbar">
+        <Link className="m-btn manager-listing-back" href="/manager">
+          Назад в панель
         </Link>
       </div>
       <ListingEditor initialVenue={venue} mode={session.role === "superadmin" ? "full" : "basic"} />

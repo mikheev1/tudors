@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import type { BookingSlot, Venue, VenueVertical } from "@/lib/types";
-
-const SLOT_TEMPLATES: Record<VenueVertical, string[]> = {
-  restaurant: ["12:00", "14:00", "16:00", "18:00", "20:00", "22:00"],
-  apartment: ["09:00", "12:00", "15:00", "18:00"],
-  "event-space": ["10:00", "13:00", "16:00", "19:00"],
-  office: ["09:00", "11:00", "13:00", "15:00", "17:00"],
-  villa: ["11:00", "14:00", "17:00", "20:00"]
-};
+import {
+  ACTIVE_BOOKING_STATUSES,
+  getBookingWindow,
+  getExistingBookingWindow,
+  normalizePlaceLabel,
+  parseBookingCommentPlaceLabel,
+  windowsOverlap
+} from "@/lib/booking-time-policy";
+import { collectAllTables, migrateFloorPlan } from "@/lib/floor-plan";
+import type { BookingSlot, Venue } from "@/lib/types";
 
 function getBaseCapacity(status?: string, hotspotKind?: string) {
   if (hotspotKind === "table" || hotspotKind === "zone") {
@@ -65,11 +66,26 @@ export async function getVenueAvailabilitySlots(input: {
   hotspotKind?: string;
 }): Promise<BookingSlot[]> {
   const db = prisma as any;
-  const slotTimes =
-    input.venue.bookingSlots.length > 0
-      ? input.venue.bookingSlots
-      : SLOT_TEMPLATES[input.venue.vertical] || SLOT_TEMPLATES["event-space"];
+  const slotTimes = (() => {
+    if (input.hotspotKind === "table" && input.hotspotLabel && input.venue.floorPlan) {
+      const table = collectAllTables(migrateFloorPlan(input.venue.floorPlan)).find(
+        (item) => item.label.trim().toLowerCase() === input.hotspotLabel?.trim().toLowerCase()
+      );
+      const tableSlots = table?.bookingSlots?.map((slot) => slot.trim()).filter(Boolean) ?? [];
+      if (tableSlots.length > 0) {
+        return tableSlots;
+      }
+    }
+
+    return input.venue.bookingSlots
+      .map((slot) => slot.trim())
+      .filter(Boolean);
+  })();
   const baseCapacity = getBaseCapacity(input.hotspotStatus, input.hotspotKind);
+
+  if (slotTimes.length === 0) {
+    return [];
+  }
 
   if (!input.date) {
     return slotTimes.map((time) => ({
@@ -91,33 +107,42 @@ export async function getVenueAvailabilitySlots(input: {
           lte: end
         },
         status: {
-          in: ["NEW", "HOLD_PENDING", "PENDING", "CONFIRMED"]
-        },
-        ...(input.hotspotLabel
-          ? {
-              comment: {
-                contains: input.hotspotLabel
-              }
-            }
-          : {})
+          in: [...ACTIVE_BOOKING_STATUSES]
+        }
       },
       select: {
+        comment: true,
+        eventDate: true,
         startTime: true
       }
     });
 
-    const counts = (rows as Array<{ startTime?: string | null }>).reduce((accumulator, row) => {
-      const key = row.startTime || "";
-      if (!key) {
-        return accumulator;
-      }
+    const activeRows = (rows as Array<{ comment?: string | null; eventDate?: Date | string | null; startTime?: string | null }>)
+      .filter((row) => {
+        if (!input.hotspotLabel) {
+          return true;
+        }
 
-      accumulator[key] = (accumulator[key] || 0) + 1;
-      return accumulator;
-    }, {} as Record<string, number>);
+        return (
+          normalizePlaceLabel(parseBookingCommentPlaceLabel(row.comment)) ===
+          normalizePlaceLabel(input.hotspotLabel)
+        );
+      });
 
     return slotTimes.map((time) => {
-      const occupied = counts[time] || 0;
+      const candidateWindow = getBookingWindow(input.date, time);
+      const occupied = activeRows.reduce((count, row) => {
+        if (!row.eventDate || !row.startTime) {
+          return count;
+        }
+
+        const existingWindow = getExistingBookingWindow(row.eventDate, row.startTime);
+        if (!existingWindow) {
+          return count;
+        }
+
+        return windowsOverlap(candidateWindow, existingWindow) ? count + 1 : count;
+      }, 0);
       const remaining = Math.max(baseCapacity - occupied, 0);
       const past = isPastSlot(input.date, time);
       const status = remaining <= 0 || past ? "unavailable" : "available";

@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 
-import type { Hotspot, Venue } from "@/lib/types";
+import type { FloorPlanData, Hotspot, Venue } from "@/lib/types";
+import { FloorPlanEditor } from "@/components/floor-plan-editor";
 
 type ListingEditorProps = {
   initialVenue: Venue;
@@ -22,6 +23,8 @@ export function ListingEditor({ initialVenue, mode }: ListingEditorProps) {
   const [selectedSceneId, setSelectedSceneId] = useState(initialVenue.scenes[0]?.id ?? "");
   const [message, setMessage] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [floorPlanSaving, setFloorPlanSaving] = useState(false);
+  const [floorPlanMessage, setFloorPlanMessage] = useState("");
 
   const selectedScene = venue.scenes.find((item) => item.id === selectedSceneId) ?? venue.scenes[0];
 
@@ -123,6 +126,31 @@ export function ListingEditor({ initialVenue, mode }: ListingEditorProps) {
     }));
   }
 
+  async function saveFloorPlan(data: FloorPlanData) {
+    setFloorPlanSaving(true);
+    setFloorPlanMessage("");
+    try {
+      const res = await fetch(`/api/admin/listings/${venue.id}/floor-plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const payload = (await res.json()) as { ok?: boolean; message?: string };
+      if (res.ok) {
+        // фиксируем сохраненное состояние в локальном venue, чтобы
+        // редактор не сбрасывал карту при последующих рендерах.
+        setVenue((current) => ({ ...current, floorPlan: data }));
+        setFloorPlanMessage("Карта сохранена");
+      } else {
+        setFloorPlanMessage(payload.message ?? "Ошибка сохранения");
+      }
+    } catch {
+      setFloorPlanMessage("Ошибка сети");
+    } finally {
+      setFloorPlanSaving(false);
+    }
+  }
+
   function saveChanges() {
     startTransition(async () => {
       setMessage("");
@@ -141,7 +169,7 @@ export function ListingEditor({ initialVenue, mode }: ListingEditorProps) {
   }
 
   return (
-    <section className="listing-editor-shell">
+    <section className="listing-editor-shell manager-listing-editor">
       <div className="listing-editor-header">
         <div>
           <span className="card-label">Редактор объекта</span>
@@ -152,12 +180,12 @@ export function ListingEditor({ initialVenue, mode }: ListingEditorProps) {
               : "Здесь можно редактировать только основную информацию объявления. 360-сцены и метки доступны только супер-админу."}
           </p>
         </div>
-        <button className="primary-button" disabled={isPending} onClick={saveChanges} type="button">
+        <button className="m-btn m-btn-gold manager-listing-save" disabled={isPending} onClick={saveChanges} type="button">
           {isPending ? "Сохранение..." : "Сохранить"}
         </button>
       </div>
 
-      {message ? <div className="admin-login-hint">{message}</div> : null}
+      {message ? <div className="admin-login-hint manager-listing-message">{message}</div> : null}
 
       <div className="listing-editor-grid">
         <div className="listing-editor-card">
@@ -201,42 +229,6 @@ export function ListingEditor({ initialVenue, mode }: ListingEditorProps) {
                 value={venue.summary}
               />
             </label>
-          </div>
-        </div>
-
-        <div className="listing-editor-card listing-editor-card-accent">
-          <div className="listing-editor-section-head">
-            <span className="card-label">Слоты бронирования</span>
-            <p>Эти часы используются в доступности, ручной записи и дневной схеме.</p>
-          </div>
-          <div className="inline-form listing-slots-form">
-            <label className="listing-field">
-              <span>Стандартные часы</span>
-              <textarea
-                onChange={(event) =>
-                  updateVenueField(
-                    "bookingSlots",
-                    event.target.value
-                      .split(/[,\n]/)
-                      .map((item) => item.trim())
-                      .filter(Boolean)
-                  )
-                }
-                placeholder="Например: 10:00, 13:00, 16:00, 19:00"
-                value={venue.bookingSlots.join(", ")}
-              />
-            </label>
-            <div className="listing-slot-preview">
-              {venue.bookingSlots.length > 0 ? (
-                venue.bookingSlots.map((slot) => (
-                  <span className="listing-slot-chip" key={slot}>
-                    {slot}
-                  </span>
-                ))
-              ) : (
-                <span className="listing-slot-empty">Слоты еще не заданы</span>
-              )}
-            </div>
           </div>
         </div>
 
@@ -345,6 +337,25 @@ export function ListingEditor({ initialVenue, mode }: ListingEditorProps) {
           </div>
         </div>
         ) : null}
+
+        {/* ── Floor Plan Editor ── */}
+        <div className="listing-editor-card listing-editor-card-wide">
+          <div className="listing-editor-card-head">
+            <span className="card-label">Карта заведения</span>
+            <p>Добавляйте отдельные секции: VIP, Welcome, Lobby и задавайте для каждой свою схему столов и зон.</p>
+          </div>
+          {floorPlanMessage && (
+            <div className="admin-login-hint manager-listing-message" style={{ marginBottom: 12 }}>
+              {floorPlanMessage}
+            </div>
+          )}
+          <FloorPlanEditor
+            key={venue.id}
+            initialData={venue.floorPlan ?? null}
+            onSave={saveFloorPlan}
+            saving={floorPlanSaving}
+          />
+        </div>
       </div>
     </section>
   );

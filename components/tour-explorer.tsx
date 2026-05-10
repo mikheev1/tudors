@@ -6,12 +6,17 @@ import { CSSProperties, FormEvent, useEffect, useMemo, useState, useTransition }
 
 import { buildClientApiUrl } from "@/lib/client/api";
 import { buildSearchHref } from "@/lib/client/search-route";
+import { hydrateFloorPlanRooms, migrateFloorPlan } from "@/lib/floor-plan";
 import { PanoramaViewer } from "@/components/panorama-viewer";
+import { FloorPlanViewer } from "@/components/floor-plan-viewer";
 import { TudorsStudioLogo } from "@/components/tudors-studio-logo";
 import { getProcessHint } from "@/lib/processes";
 import type {
   BookingSlot,
   CompanyThemeConfig,
+  FloorPlanRoom,
+  FloorPlanTable,
+  FloorPlanTableStatus,
   Hotspot,
   Venue,
   VenueSearchFilters,
@@ -36,6 +41,19 @@ type ProcessPayload = {
   issues?: string[];
   holdLabel?: string;
   slaLabel?: string;
+};
+
+type FloorPlanSelection = {
+  id: string;
+  kind: "zone" | "table";
+  label: string;
+  roomName: string;
+  sceneId: string;
+  hotspotId?: string;
+  status?: Hotspot["status"];
+  capacityText?: string;
+  deposit?: string;
+  minSpend?: string;
 };
 
 const verticalLabels: Record<VenueVertical, string> = {
@@ -88,6 +106,10 @@ function formatPhoneLocal(value: string) {
 function buildPhoneNumber(countryCode: string, phoneLocal: string) {
   const normalizedLocal = formatPhoneLocal(phoneLocal);
   return `${countryCode} ${normalizedLocal}`.trim();
+}
+
+function normalizePlanKey(value?: string) {
+  return (value || "").trim().toLowerCase();
 }
 
 function getSlotStatusText(slot: BookingSlot) {
@@ -158,6 +180,11 @@ export function TourExplorer({
   const [venueId, setVenueId] = useState(venues[0]?.id ?? "");
   const [sceneId, setSceneId] = useState(venues[0]?.scenes[0]?.id ?? "");
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
+  const [selectedFloorRoomId, setSelectedFloorRoomId] = useState("");
+  const [selectedFloorZoneId, setSelectedFloorZoneId] = useState("");
+  const [selectedFloorTable, setSelectedFloorTable] = useState<FloorPlanTable | null>(null);
+  const [selectedFloorPoint, setSelectedFloorPoint] = useState<FloorPlanSelection | null>(null);
+  const [showFloorPlan, setShowFloorPlan] = useState(false);
   const [isVenueOpen, setIsVenueOpen] = useState(false);
   const [hasOpenedVenue, setHasOpenedVenue] = useState(false);
   const [panelMode, setPanelMode] = useState<"book" | "waitlist" | null>(null);
@@ -190,6 +217,37 @@ export function TourExplorer({
     () => venues.find((v) => v.id === venueId) ?? venues[0] ?? null,
     [venueId, venues]
   );
+  const floorPlan = useMemo(
+    () => (venue?.floorPlan ? hydrateFloorPlanRooms(migrateFloorPlan(venue.floorPlan), venue.scenes) : null),
+    [venue]
+  );
+  const floorPlanRooms = floorPlan?.rooms ?? [];
+
+  // Derive per-table statuses from hotspot data so the client floor plan
+  // shows "waitlist" tables in purple instead of falsely showing everything green.
+  const floorPlanTableStatuses = useMemo<Record<string, FloorPlanTableStatus>>(() => {
+    if (!floorPlan || !venue) return {};
+    const statuses: Record<string, FloorPlanTableStatus> = {};
+    for (const room of floorPlan.rooms) {
+      const matchedScene =
+        venue.scenes.find(
+          (s) => normalizePlanKey(s.floorPlanLabel || s.title) === normalizePlanKey(room.name)
+        ) ?? venue.scenes[0] ?? null;
+      if (!matchedScene) continue;
+      for (const table of room.tables) {
+        const hotspot = matchedScene.hotspots.find(
+          (h) =>
+            h.kind !== "scene" &&
+            normalizePlanKey(h.heading ?? h.label) === normalizePlanKey(table.label)
+        );
+        if (hotspot?.status === "waitlist") {
+          statuses[table.id] = "waitlist";
+        }
+        // "available" is the default — no entry needed
+      }
+    }
+    return statuses;
+  }, [floorPlan, venue]);
 
   const scene = useMemo(
     () => venue?.scenes.find((s) => s.id === sceneId) ?? venue?.scenes[0] ?? null,
@@ -200,9 +258,31 @@ export function TourExplorer({
     () => scene?.hotspots.find((h) => h.id === selectedHotspotId) ?? null,
     [scene, selectedHotspotId]
   );
+  const selectedFloorRoom = useMemo(
+    () => floorPlanRooms.find((room) => room.id === selectedFloorRoomId) ?? floorPlanRooms[0] ?? null,
+    [floorPlanRooms, selectedFloorRoomId]
+  );
+  const activeBookingPoint = useMemo(() => {
+    if (selectedHotspot) {
+      return {
+        id: selectedHotspot.id,
+        kind: selectedHotspot.kind === "table" ? "table" : "zone",
+        label: selectedHotspot.heading ?? selectedHotspot.label,
+        roomName: scene?.floorPlanLabel || scene?.title || venue?.name || "",
+        sceneId: scene?.id || "",
+        hotspotId: selectedHotspot.id,
+        status: selectedHotspot.status,
+        capacityText: selectedHotspot.capacity,
+        deposit: selectedHotspot.deposit,
+        minSpend: selectedHotspot.minSpend
+      } satisfies FloorPlanSelection;
+    }
+
+    return selectedFloorPoint;
+  }, [scene, selectedFloorPoint, selectedHotspot, venue]);
 
   const sceneIndex = scene ? (venue?.scenes.findIndex((s) => s.id === scene.id) ?? 0) : 0;
-  const processHint = selectedHotspot ? getProcessHint(selectedHotspot.status) : "";
+  const processHint = activeBookingPoint ? getProcessHint(activeBookingPoint.status) : "";
   const heroVenue = venues[0];
   const availableSlotCount = useMemo(
     () => availabilitySlots.filter((s) => s.status !== "unavailable").length,
@@ -234,6 +314,10 @@ export function TourExplorer({
       setVenueId(venues[0].id);
       setSceneId(venues[0].scenes[0]?.id ?? "");
       setSelectedHotspotId(null);
+      setSelectedFloorPoint(null);
+      setSelectedFloorRoomId("");
+      setSelectedFloorZoneId("");
+      setSelectedFloorTable(null);
       setPanelMode(null);
     }
   }, [venueId, venues]);
@@ -248,14 +332,26 @@ export function TourExplorer({
   // Reset slot time on date/hotspot change
   useEffect(() => {
     setSelectedSlotTime("");
-  }, [bookingDate, selectedHotspotId, venueId]);
+  }, [bookingDate, selectedHotspotId, selectedFloorPoint?.id, venueId]);
+
+  useEffect(() => {
+    setSelectedFloorRoomId((current) =>
+      floorPlanRooms.some((room) => room.id === current) ? current : floorPlanRooms[0]?.id ?? ""
+    );
+  }, [floorPlanRooms]);
+
+  useEffect(() => {
+    if (selectedFloorRoom && !selectedFloorRoom.zones.some((zone) => zone.id === selectedFloorZoneId)) {
+      setSelectedFloorZoneId("");
+    }
+  }, [selectedFloorRoom, selectedFloorZoneId]);
 
   // Availability polling
   useEffect(() => {
     let isCancelled = false;
 
     async function loadAvailability() {
-      if (!venue || !selectedHotspot || panelMode === "waitlist") {
+      if (!venue || !activeBookingPoint || panelMode === "waitlist") {
         setAvailabilitySlots([]);
         return;
       }
@@ -264,9 +360,9 @@ export function TourExplorer({
         const params = new URLSearchParams({
           venueId: venue.id,
           date: bookingDate,
-          hotspotLabel: selectedHotspot.heading ?? selectedHotspot.label,
-          hotspotStatus: selectedHotspot.status || "",
-          hotspotKind: selectedHotspot.kind
+          hotspotLabel: activeBookingPoint.label,
+          hotspotStatus: activeBookingPoint.status || "",
+          hotspotKind: activeBookingPoint.kind
         });
         const res = await fetch(buildClientApiUrl(`/api/availability?${params.toString()}`), {
           cache: "no-store"
@@ -298,7 +394,7 @@ export function TourExplorer({
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [bookingDate, panelMode, selectedHotspot, venue]);
+  }, [activeBookingPoint, bookingDate, panelMode, venue]);
 
   // Lock body scroll when modal open
   useEffect(() => {
@@ -317,7 +413,7 @@ export function TourExplorer({
   // ── Handlers ───────────────────────────────────────────────────
 
   async function refreshAvailabilitySnapshot() {
-    if (!venue || !selectedHotspot || panelMode === "waitlist") {
+    if (!venue || !activeBookingPoint || panelMode === "waitlist") {
       setAvailabilitySlots([]);
       return;
     }
@@ -326,9 +422,9 @@ export function TourExplorer({
       const params = new URLSearchParams({
         venueId: venue.id,
         date: bookingDate,
-        hotspotLabel: selectedHotspot.heading ?? selectedHotspot.label,
-        hotspotStatus: selectedHotspot.status || "",
-        hotspotKind: selectedHotspot.kind
+        hotspotLabel: activeBookingPoint.label,
+        hotspotStatus: activeBookingPoint.status || "",
+        hotspotKind: activeBookingPoint.kind
       });
       const res = await fetch(buildClientApiUrl(`/api/availability?${params.toString()}`), {
         cache: "no-store"
@@ -342,12 +438,20 @@ export function TourExplorer({
     }
   }
 
+  function clearFloorSelection() {
+    setSelectedFloorPoint(null);
+    setSelectedFloorRoomId("");
+    setSelectedFloorZoneId("");
+    setSelectedFloorTable(null);
+  }
+
   function selectVenue(nextVenueId: string) {
     const next = venues.find((v) => v.id === nextVenueId);
     if (!next) return;
     setVenueId(next.id);
     setSceneId(next.scenes[0]?.id ?? "");
     setSelectedHotspotId(null);
+    clearFloorSelection();
     setPanelMode(null);
     setToast(null);
     setIsVenueOpen(true);
@@ -357,6 +461,7 @@ export function TourExplorer({
   function selectScene(nextSceneId: string) {
     setSceneId(nextSceneId);
     setSelectedHotspotId(null);
+    clearFloorSelection();
     setPanelMode(null);
   }
 
@@ -366,7 +471,64 @@ export function TourExplorer({
       return;
     }
     setSelectedHotspotId(hotspot.id);
+    clearFloorSelection();
     setPanelMode(null);
+  }
+
+  function buildFloorSelection(
+    input: {
+      id: string;
+      label: string;
+      kind: "zone" | "table";
+      room: FloorPlanRoom;
+      capacityText?: string;
+      /** Status resolved from floorPlanTableStatuses — drives panel mode. */
+      tableStatus?: FloorPlanTableStatus;
+    }
+  ) {
+    const matchedScene =
+      venue?.scenes.find(
+        (item) => normalizePlanKey(item.floorPlanLabel || item.title) === normalizePlanKey(input.room.name)
+      ) ??
+      venue?.scenes[0] ??
+      null;
+    const matchedHotspot =
+      matchedScene?.hotspots.find(
+        (item) =>
+          item.kind !== "scene" &&
+          normalizePlanKey(item.heading ?? item.label) === normalizePlanKey(input.label)
+      ) ?? null;
+
+    if (matchedScene && matchedScene.id !== scene?.id) {
+      setSceneId(matchedScene.id);
+    }
+
+    setSelectedHotspotId(matchedHotspot?.id ?? null);
+    setSelectedFloorPoint({
+      id: input.id,
+      kind: input.kind,
+      label: input.label,
+      roomName: input.room.name,
+      sceneId: matchedScene?.id || "",
+      hotspotId: matchedHotspot?.id,
+      status: matchedHotspot?.status,
+      capacityText: input.capacityText || matchedHotspot?.capacity,
+      deposit: matchedHotspot?.deposit,
+      minSpend: matchedHotspot?.minSpend
+    });
+
+    // ── Booking logic per table status ──────────────────────────────────────
+    // available  → show booking form (free slot)
+    // new        → show booking form (pending request, not yet confirmed — client can still apply)
+    // hold_pending → waitlist only (slot held for 30 min)
+    // confirmed  → waitlist only (slot taken)
+    // waitlist   → waitlist only (already queued)
+    // declined   → table is not clickable at all (handled in FloorPlanViewer)
+    const forceWaitlist =
+      input.tableStatus === "hold_pending" ||
+      input.tableStatus === "confirmed" ||
+      input.tableStatus === "waitlist";
+    setPanelMode(forceWaitlist ? "waitlist" : "book");
   }
 
   function moveScene(direction: number) {
@@ -394,7 +556,7 @@ export function TourExplorer({
     const phoneLocal = String(fd.get("phoneLocal") || "");
     const telegram = String(fd.get("telegram") || "").trim();
 
-    if (!selectedSlotTime) {
+      if (!selectedSlotTime) {
       setToast({ kind: "error", message: "Выбери доступный слот времени." });
       return;
     }
@@ -411,9 +573,9 @@ export function TourExplorer({
           time: selectedSlotTime,
           guests: Number(fd.get("guests") || 1),
           venue: venue!.name,
-          hotspotLabel: selectedHotspot?.heading ?? selectedHotspot?.label ?? scene!.title,
+          hotspotLabel: activeBookingPoint?.label ?? scene!.title,
           comment: [
-            selectedHotspot?.heading ?? selectedHotspot?.label ?? scene!.title,
+            activeBookingPoint?.label ?? scene!.title,
             selectedSlotTime,
             String(fd.get("comment") || "")
           ]
@@ -450,10 +612,10 @@ export function TourExplorer({
         body: JSON.stringify({
           venueId: venue!.id,
           venueName: venue!.name,
-          sceneId: scene!.id,
+          sceneId: activeBookingPoint?.sceneId || scene!.id,
           sceneTitle: scene!.title,
-          hotspotId: selectedHotspot?.id,
-          hotspotLabel: selectedHotspot?.heading ?? selectedHotspot?.label,
+          hotspotId: activeBookingPoint?.hotspotId,
+          hotspotLabel: activeBookingPoint?.label,
           name: String(fd.get("name") || ""),
           phone: buildPhoneNumber(countryCode, phoneLocal),
           telegram
@@ -930,19 +1092,20 @@ export function TourExplorer({
                   </div>
 
                   {/* HUD backdrop */}
-                  {selectedHotspot ? (
+                  {activeBookingPoint ? (
                     <div
                       className="s-hud-backdrop"
                       style={{ position: "fixed", inset: 0, zIndex: 208 } as CSSProperties}
                       onClick={() => {
                         setSelectedHotspotId(null);
+                        clearFloorSelection();
                         setPanelMode(null);
                       }}
                     />
                   ) : null}
 
                   {/* HUD Panel */}
-                  {selectedHotspot ? (
+                  {activeBookingPoint ? (
                     <div
                       className="s-hud"
                       style={isMobileHud ? {
@@ -972,13 +1135,14 @@ export function TourExplorer({
                         <div>
                           <div className="s-hud-eyebrow">Выбрано</div>
                           <h3 className="s-hud-title">
-                            {selectedHotspot.heading ?? selectedHotspot.label}
+                            {activeBookingPoint.label}
                           </h3>
                         </div>
                         <button
                           className="s-hud-close"
                           onClick={() => {
                             setSelectedHotspotId(null);
+                            clearFloorSelection();
                             setPanelMode(null);
                           }}
                           type="button"
@@ -988,19 +1152,19 @@ export function TourExplorer({
                       </div>
 
                       <div className="s-hud-meta">
-                        {selectedHotspot.status ? (
-                          <span className={`s-status s-status-${getBookingPointStatus(selectedHotspot.status)}`}>
-                            {getStatusLabel(selectedHotspot.status, selectedHotspot.kind)}
+                        {activeBookingPoint.status ? (
+                          <span className={`s-status s-status-${getBookingPointStatus(activeBookingPoint.status)}`}>
+                            {getStatusLabel(activeBookingPoint.status, activeBookingPoint.kind)}
                           </span>
                         ) : null}
-                        {selectedHotspot.capacity ? (
-                          <span className="s-card-fact">{selectedHotspot.capacity}</span>
+                        {activeBookingPoint.capacityText ? (
+                          <span className="s-card-fact">{activeBookingPoint.capacityText}</span>
                         ) : null}
-                        {selectedHotspot.deposit ? (
-                          <span className="s-card-fact">{selectedHotspot.deposit}</span>
+                        {activeBookingPoint.deposit ? (
+                          <span className="s-card-fact">{activeBookingPoint.deposit}</span>
                         ) : null}
-                        {selectedHotspot.minSpend ? (
-                          <span className="s-card-fact">{selectedHotspot.minSpend}</span>
+                        {activeBookingPoint.minSpend ? (
+                          <span className="s-card-fact">{activeBookingPoint.minSpend}</span>
                         ) : null}
                       </div>
 
@@ -1205,6 +1369,136 @@ export function TourExplorer({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* ── Floor Plan ── */}
+              <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+                {venue.floorPlan ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowFloorPlan(v => !v)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        marginBottom: showFloorPlan ? 14 : 0,
+                      }}
+                    >
+                      <span style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#334155",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}>
+                        <span style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 22,
+                          height: 22,
+                          borderRadius: 6,
+                          background: "#f1f5f9",
+                          fontSize: 12,
+                        }}>
+                          {showFloorPlan ? "▲" : "▼"}
+                        </span>
+                        Схема заведения
+                        {selectedFloorPoint && (
+                          <span style={{
+                            fontSize: 12,
+                            padding: "2px 8px",
+                            borderRadius: 20,
+                            background: "#dbeafe",
+                            color: "#1e40af",
+                            fontWeight: 400,
+                            marginLeft: 4,
+                          }}>
+                            {selectedFloorPoint.roomName} · {selectedFloorPoint.label}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+
+                    {showFloorPlan && (
+                      <FloorPlanViewer
+                        allowOccupiedTableSelection
+                        data={floorPlan!}
+                        tableStatuses={floorPlanTableStatuses}
+                        onRoomChange={(room) => {
+                          setSelectedFloorRoomId(room.id);
+                          setSelectedFloorZoneId("");
+                          setSelectedFloorTable(null);
+                          buildFloorSelection({
+                            id: `room-${room.id}`,
+                            kind: "zone",
+                            label: room.name,
+                            room
+                          });
+                        }}
+                        onZoneSelect={(zone, room) => {
+                          setSelectedFloorRoomId(room.id);
+                          setSelectedFloorZoneId(zone.id);
+                          setSelectedFloorTable(null);
+                          buildFloorSelection({
+                            id: `zone-${zone.id}`,
+                            kind: "zone",
+                            label: zone.label,
+                            room
+                          });
+                        }}
+                        onTableSelect={(table, room) => {
+                          setSelectedFloorRoomId(room.id);
+                          setSelectedFloorZoneId("");
+                          setSelectedFloorTable((prev) =>
+                            prev?.id === table.id ? null : table
+                          );
+                          buildFloorSelection({
+                            id: `table-${table.id}`,
+                            kind: "table",
+                            label: table.label,
+                            room,
+                            capacityText: `${table.capacity} мест`,
+                            tableStatus: floorPlanTableStatuses[table.id]
+                          });
+                        }}
+                        selectedRoomId={selectedFloorRoomId || undefined}
+                        selectedTableId={selectedFloorTable?.id}
+                        selectedZoneId={selectedFloorZoneId || undefined}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 16px",
+                    background: "#f8fafc",
+                    borderRadius: 10,
+                    border: "1px dashed #cbd5e1",
+                  }}>
+                    <span style={{
+                      fontSize: 22,
+                      lineHeight: 1,
+                      opacity: 0.4,
+                    }}>⬜</span>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#64748b" }}>
+                        Расстановка не добавлена
+                      </p>
+                      <p style={{ margin: "2px 0 0", fontSize: 12, color: "#94a3b8" }}>
+                        Менеджер заведения ещё не загрузил схему столов и зон
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

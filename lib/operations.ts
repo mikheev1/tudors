@@ -1,4 +1,13 @@
-import { prisma } from "@/lib/prisma";
+import {
+  ACTIVE_BOOKING_STATUSES,
+  getBookingWindow,
+  getExistingBookingWindow,
+  normalizePlaceLabel,
+  windowsOverlap
+} from "@/lib/booking-time-policy";
+import { getArchivedBookingIds } from "@/lib/booking-archive";
+import { buildBookingComment, parseBookingComment } from "@/lib/booking-comment";
+import { getDatabaseUnavailableError, prisma } from "@/lib/prisma";
 import { getCompanyTheme } from "@/lib/company-config";
 import { getVenueEditorData } from "@/lib/venue-repository";
 import type {
@@ -9,7 +18,19 @@ import type {
 } from "@/lib/types";
 
 function combineDateTime(date: string, time?: string | null) {
-  return new Date(`${date}T${time || "00:00"}:00`);
+  // When no time is provided we use UTC noon ("12:00:00Z") so that
+  // toISOString().slice(0, 10) always returns the correct local date
+  // regardless of the server's timezone offset (e.g. UTC+5 Tashkent).
+  // Using local midnight "00:00:00" would shift the UTC date back one day.
+  if (!time) {
+    return new Date(`${date}T12:00:00Z`);
+  }
+  return new Date(`${date}T${time}:00`);
+}
+
+function formatLocalDateIso(date: Date | string) {
+  const value = typeof date === "string" ? new Date(date) : date;
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
 }
 
 function formatDateTimeLabel(date: Date | string, time?: string | null) {
@@ -32,25 +53,174 @@ function normalizeTelegram(value?: string | null) {
   return value.startsWith("@") ? value : `@${value}`;
 }
 
-function parseBookingComment(comment?: string | null) {
-  const parts = (comment || "")
-    .split("|")
-    .map((item) => item.trim())
-    .filter(Boolean);
+async function findOverlappingManualBooking(
+  db: any,
+  input: {
+    venueId: string;
+    date: string;
+    time: string;
+    placeLabel: string;
+    tableId?: string;
+    roomName?: string;
+  }
+) {
+  const candidateWindow = getBookingWindow(input.date, input.time);
+  const archivedBookingIds = await getArchivedBookingIds();
+  const rows = await db.bookingRequest.findMany({
+    where: {
+      venueId: input.venueId,
+      eventDate: {
+        gte: new Date(`${input.date}T00:00:00`),
+        lte: new Date(`${input.date}T23:59:59.999`)
+      },
+      status: {
+        in: [...ACTIVE_BOOKING_STATUSES]
+      }
+    },
+    select: {
+      id: true,
+      comment: true,
+      eventDate: true,
+      startTime: true
+    }
+  });
 
-  return {
-    placeLabel: parts[0] || "Без точки",
-    slotLabel: parts[1] || undefined
-  };
+  return rows.find((row: any) => {
+    if (archivedBookingIds.has(row.id)) {
+      return false;
+    }
+
+    const parsed = parseBookingComment(row.comment);
+    const hasExactTableMatch = parsed.tableId && input.tableId && parsed.tableId === input.tableId;
+    const hasExactRoomMatch =
+      !hasExactTableMatch &&
+      parsed.roomName &&
+      input.roomName &&
+      normalizePlaceLabel(parsed.roomName) === normalizePlaceLabel(input.roomName) &&
+      normalizePlaceLabel(parsed.placeLabel) === normalizePlaceLabel(input.placeLabel);
+
+    if (!hasExactTableMatch && !hasExactRoomMatch) {
+      if (parsed.tableId && input.tableId && parsed.tableId !== input.tableId) {
+        return false;
+      }
+
+      if (normalizePlaceLabel(parsed.placeLabel) !== normalizePlaceLabel(input.placeLabel)) {
+        return false;
+      }
+    }
+
+    const existingWindow = getExistingBookingWindow(row.eventDate, row.startTime);
+    return existingWindow ? windowsOverlap(candidateWindow, existingWindow) : false;
+  });
 }
 
-function buildManagerReminderMessage(
-  venueName: string,
-  placeLabel: string,
-  customerName: string,
-  minutes: number
-) {
-  return `${venueName}: через ${minutes} мин. бронь на ${placeLabel} для ${customerName}. Позвоните и подтвердите приезд.`;
+function fmtNotifDate(date: Date, time?: string | null) {
+  const d = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
+  return time ? `${d} · ${time}` : d;
+}
+
+function buildNewBookingMessage(p: {
+  venueName: string; placeLabel: string; name: string;
+  phone?: string | null; date: Date; time?: string | null; guests?: number | null;
+}) {
+  return [
+    `🆕 Новая заявка — ${p.venueName}`,
+    ``,
+    `📍 ${p.placeLabel}`,
+    `👤 ${p.name}`,
+    p.phone ? `📞 ${p.phone}` : null,
+    `📅 ${fmtNotifDate(p.date, p.time)}`,
+    p.guests ? `👥 ${p.guests} чел.` : null,
+    ``,
+    `→ Свяжитесь с клиентом для подтверждения`
+  ].filter((l) => l !== null).join("\n");
+}
+
+function buildConfirmedMessage(p: {
+  venueName: string; placeLabel: string; name: string;
+  phone?: string | null; date: Date; time?: string | null; guests?: number | null;
+}) {
+  return [
+    `✅ Бронь подтверждена — ${p.venueName}`,
+    ``,
+    `📍 ${p.placeLabel}`,
+    `👤 ${p.name}`,
+    p.phone ? `📞 ${p.phone}` : null,
+    `📅 ${fmtNotifDate(p.date, p.time)}`,
+    p.guests ? `👥 ${p.guests} чел.` : null
+  ].filter((l) => l !== null).join("\n");
+}
+
+function buildManagerReminderMessage(p: {
+  venueName: string; placeLabel: string; name: string;
+  phone?: string | null; minutes: number;
+}) {
+  return [
+    `⏰ Через ${p.minutes} мин — ${p.venueName}`,
+    ``,
+    `📍 ${p.placeLabel}`,
+    `👤 ${p.name}`,
+    p.phone ? `📞 ${p.phone}` : null,
+    ``,
+    `→ Уточните приезд клиента`
+  ].filter((l) => l !== null).join("\n");
+}
+
+function buildArrivalCheckMessage(p: {
+  venueName: string; placeLabel: string; name: string; phone?: string | null;
+}) {
+  return [
+    `🕐 Время брони — прямо сейчас!`,
+    ``,
+    `📍 ${p.venueName} · ${p.placeLabel}`,
+    `👤 ${p.name}`,
+    p.phone ? `📞 ${p.phone}` : null,
+    ``,
+    `→ Пришёл? Задерживается → переведите в резерв. Не придёт → отмените`
+  ].filter((l) => l !== null).join("\n");
+}
+
+function buildWaitlistPromotedMessage(p: {
+  venueName: string; placeLabel: string; name: string;
+  phone?: string | null; date: Date; time?: string | null;
+}) {
+  return [
+    `🔔 Слот освободился — клиент в ожидании`,
+    ``,
+    `📍 ${p.venueName} · ${p.placeLabel}`,
+    `👤 ${p.name}`,
+    p.phone ? `📞 ${p.phone}` : null,
+    `📅 ${fmtNotifDate(p.date, p.time)}`,
+    ``,
+    `→ Позвоните и подтвердите бронь`
+  ].filter((l) => l !== null).join("\n");
+}
+
+function buildWalkinOccupiedMessage(p: {
+  venueName: string; placeLabel: string; time: string;
+}) {
+  return `🪑 Стол занят — ${p.venueName}\n\n📍 ${p.placeLabel}\n🕐 ${p.time} (Walk-in)`;
+}
+
+function buildWalkinReleasedMessage(p: {
+  venueName: string; placeLabel: string;
+}) {
+  return `✔️ Стол освобождён — ${p.venueName}\n\n📍 ${p.placeLabel}\n→ Стол снова свободен`;
+}
+
+function buildWalkinUpcomingWarningMessage(p: {
+  venueName: string;
+  placeLabel: string;
+  time: string;
+}) {
+  return [
+    `⚠️ Walk-in нужно завершить заранее`,
+    ``,
+    `📍 ${p.venueName} · ${p.placeLabel}`,
+    `🕐 Ближайшая бронь: ${p.time}`,
+    ``,
+    `→ Предупредите гостя и подготовьте стол к следующей посадке`
+  ].join("\n");
 }
 
 function buildCustomerReminderMessage(
@@ -114,7 +284,9 @@ export async function scheduleBookingNotifications(input: {
   venueId?: string | null;
   venueName: string;
   customerName: string;
+  customerPhone?: string | null;
   customerTelegram?: string | null;
+  guestCount?: number | null;
   placeLabel: string;
   eventDate: Date;
   startTime?: string | null;
@@ -127,15 +299,17 @@ export async function scheduleBookingNotifications(input: {
   const botName = companyTheme?.telegramBotName || companyTheme?.name || "Tudors Studio";
   const managerChatId = companyTheme?.telegramAdminChatId;
   const eventDateTime = input.startTime
-    ? combineDateTime(
-        input.eventDate.toISOString().slice(0, 10),
-        input.startTime
-      )
+    ? combineDateTime(input.eventDate.toISOString().slice(0, 10), input.startTime)
     : input.eventDate;
+  const now = new Date();
 
+  // Clear all existing pending notifications for this booking
   await clearPendingNotificationJobs(input.bookingId, [
+    "new-booking",
+    "booking-confirmed",
     "manager-reminder",
     "customer-reminder",
+    "arrival-check",
     "waitlist-offer"
   ]);
 
@@ -143,46 +317,206 @@ export async function scheduleBookingNotifications(input: {
     return;
   }
 
-  const managerReminderAt = new Date(eventDateTime.getTime() - managerLead * 60 * 1000);
-  const customerReminderAt = new Date(eventDateTime.getTime() - customerLead * 60 * 1000);
+  const msgParams = {
+    venueName: input.venueName,
+    placeLabel: input.placeLabel,
+    name: input.customerName,
+    phone: input.customerPhone,
+    date: input.eventDate,
+    time: input.startTime,
+    guests: input.guestCount
+  };
 
+  // ── 1. Immediate notification to admin group ──────────────────────────────
   if (managerChatId) {
-    await queueNotificationJob({
-      bookingRequestId: input.bookingId,
-      companyId: input.companyId ?? undefined,
-      venueId: input.venueId ?? undefined,
-      kind: "manager-reminder",
-      channel: "telegram-admin",
-      recipient: managerChatId,
-      recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
-      message: buildManagerReminderMessage(
-        input.venueName,
-        input.placeLabel,
-        input.customerName,
-        managerLead
-      ),
-      scheduledAt: managerReminderAt
-    });
+    const isNew = input.status === "NEW";
+    const isConfirmed = input.status === "CONFIRMED";
+
+    if (isNew || isConfirmed) {
+      await queueNotificationJob({
+        bookingRequestId: input.bookingId,
+        companyId: input.companyId ?? undefined,
+        venueId: input.venueId ?? undefined,
+        kind: isNew ? "new-booking" : "booking-confirmed",
+        channel: "telegram-admin",
+        recipient: managerChatId,
+        recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
+        message: isNew ? buildNewBookingMessage(msgParams) : buildConfirmedMessage(msgParams),
+        scheduledAt: now
+      });
+    }
+
+    // ── 2. Reminder N minutes before event (CONFIRMED only) ────────────────
+    if (isConfirmed && eventDateTime > now) {
+      const reminderAt = new Date(eventDateTime.getTime() - managerLead * 60 * 1000);
+      if (reminderAt > now) {
+        await queueNotificationJob({
+          bookingRequestId: input.bookingId,
+          companyId: input.companyId ?? undefined,
+          venueId: input.venueId ?? undefined,
+          kind: "manager-reminder",
+          channel: "telegram-admin",
+          recipient: managerChatId,
+          recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
+          message: buildManagerReminderMessage({
+            venueName: input.venueName,
+            placeLabel: input.placeLabel,
+            name: input.customerName,
+            phone: input.customerPhone,
+            minutes: managerLead
+          }),
+          scheduledAt: reminderAt
+        });
+      }
+
+      // ── 3. Arrival check AT event time ──────────────────────────────────
+      if (input.startTime && eventDateTime > now) {
+        await queueNotificationJob({
+          bookingRequestId: input.bookingId,
+          companyId: input.companyId ?? undefined,
+          venueId: input.venueId ?? undefined,
+          kind: "arrival-check",
+          channel: "telegram-admin",
+          recipient: managerChatId,
+          recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
+          message: buildArrivalCheckMessage({
+            venueName: input.venueName,
+            placeLabel: input.placeLabel,
+            name: input.customerName,
+            phone: input.customerPhone
+          }),
+          scheduledAt: eventDateTime
+        });
+      }
+    }
   }
 
-  if (input.customerTelegram) {
-    await queueNotificationJob({
-      bookingRequestId: input.bookingId,
-      companyId: input.companyId ?? undefined,
-      venueId: input.venueId ?? undefined,
-      kind: "customer-reminder",
-      channel: "telegram-customer",
-      recipient: input.customerTelegram,
-      recipientLabel: input.customerTelegram,
-      message: buildCustomerReminderMessage(
-        botName,
-        input.venueName,
-        input.placeLabel,
-        customerLead
-      ),
-      scheduledAt: customerReminderAt
-    });
+  // ── 4. Customer reminder via Telegram ─────────────────────────────────────
+  if (input.customerTelegram && input.status === "CONFIRMED" && eventDateTime > now) {
+    const customerReminderAt = new Date(eventDateTime.getTime() - customerLead * 60 * 1000);
+    if (customerReminderAt > now) {
+      await queueNotificationJob({
+        bookingRequestId: input.bookingId,
+        companyId: input.companyId ?? undefined,
+        venueId: input.venueId ?? undefined,
+        kind: "customer-reminder",
+        channel: "telegram-customer",
+        recipient: input.customerTelegram,
+        recipientLabel: input.customerTelegram,
+        message: buildCustomerReminderMessage(
+          botName,
+          input.venueName,
+          input.placeLabel,
+          customerLead
+        ),
+        scheduledAt: customerReminderAt
+      });
+    }
   }
+}
+
+// Send walk-in notification (occupied or released) directly to admin group
+export async function sendWalkinNotification(input: {
+  companyId?: string | null;
+  venueId?: string | null;
+  venueName: string;
+  placeLabel: string;
+  time?: string;
+  kind: "occupied" | "released";
+}) {
+  if (!prisma) return;
+  const companyTheme = input.companyId ? await getCompanyTheme(input.companyId) : null;
+  const managerChatId = companyTheme?.telegramAdminChatId;
+  if (!managerChatId) return;
+
+  await queueNotificationJob({
+    companyId: input.companyId ?? undefined,
+    venueId: input.venueId ?? undefined,
+    kind: input.kind === "occupied" ? "walkin-occupied" : "walkin-released",
+    channel: "telegram-admin",
+    recipient: managerChatId,
+    recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
+    message:
+      input.kind === "occupied"
+        ? buildWalkinOccupiedMessage({
+            venueName: input.venueName,
+            placeLabel: input.placeLabel,
+            time: input.time || "—"
+          })
+        : buildWalkinReleasedMessage({
+            venueName: input.venueName,
+            placeLabel: input.placeLabel
+          }),
+    scheduledAt: new Date()
+  });
+}
+
+export async function queueWalkinUpcomingWarning(input: {
+  bookingId: string;
+  companyId?: string | null;
+  venueId?: string | null;
+  venueName: string;
+  placeLabel: string;
+  bookingTime: string;
+  scheduledAt: Date;
+}) {
+  if (!prisma) return;
+  const companyTheme = input.companyId ? await getCompanyTheme(input.companyId) : null;
+  const managerChatId = companyTheme?.telegramAdminChatId;
+  if (!managerChatId) return;
+
+  await queueNotificationJob({
+    bookingRequestId: input.bookingId,
+    companyId: input.companyId ?? undefined,
+    venueId: input.venueId ?? undefined,
+    kind: "walkin-upcoming-warning",
+    channel: "telegram-admin",
+    recipient: managerChatId,
+    recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
+    message: buildWalkinUpcomingWarningMessage({
+      venueName: input.venueName,
+      placeLabel: input.placeLabel,
+      time: input.bookingTime
+    }),
+    scheduledAt: input.scheduledAt
+  });
+}
+
+// Send notification when a waitlist booking is promoted to NEW
+export async function sendWaitlistPromotedNotification(input: {
+  companyId?: string | null;
+  venueId?: string | null;
+  bookingId: string;
+  venueName: string;
+  placeLabel: string;
+  customerName: string;
+  customerPhone?: string | null;
+  eventDate: Date;
+  startTime?: string | null;
+}) {
+  if (!prisma) return;
+  const companyTheme = input.companyId ? await getCompanyTheme(input.companyId) : null;
+  const managerChatId = companyTheme?.telegramAdminChatId;
+  if (!managerChatId) return;
+
+  await queueNotificationJob({
+    bookingRequestId: input.bookingId,
+    companyId: input.companyId ?? undefined,
+    venueId: input.venueId ?? undefined,
+    kind: "waitlist-promoted",
+    channel: "telegram-admin",
+    recipient: managerChatId,
+    recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
+    message: buildWaitlistPromotedMessage({
+      venueName: input.venueName,
+      placeLabel: input.placeLabel,
+      name: input.customerName,
+      phone: input.customerPhone,
+      date: input.eventDate,
+      time: input.startTime
+    }),
+    scheduledAt: new Date()
+  });
 }
 
 export async function createWaitlistEntry(payload: {
@@ -198,6 +532,10 @@ export async function createWaitlistEntry(payload: {
   date?: string;
   time?: string;
 }) {
+  if (!prisma) {
+    throw getDatabaseUnavailableError();
+  }
+
   const db = prisma as any;
   const venue = await getVenueEditorData(payload.venueId);
 
@@ -226,6 +564,10 @@ export async function listManagerWaitlist(input: {
   role: "superadmin" | "admin" | "manager";
   includeHistory?: boolean;
 }): Promise<ManagerWaitlistEntry[]> {
+  if (!prisma) {
+    return [];
+  }
+
   const db = prisma as any;
   const rows = await db.waitlistEntry.findMany({
     where: {
@@ -269,9 +611,7 @@ export async function listManagerWaitlist(input: {
                 ? "cancelled"
                 : "active",
         note: row.note || undefined,
-        requestedDateIso: row.requestedDate
-          ? new Date(row.requestedDate).toISOString().slice(0, 10)
-          : undefined,
+        requestedDateIso: row.requestedDate ? formatLocalDateIso(row.requestedDate) : undefined,
         requestedTimeRaw: row.requestedTime || undefined
       };
     })
@@ -282,6 +622,10 @@ export async function listManagerReminders(input: {
   companyId: string;
   role: "superadmin" | "admin" | "manager";
 }): Promise<ManagerReminderItem[]> {
+  if (!prisma) {
+    return [];
+  }
+
   const db = prisma as any;
   const rows = await db.notificationJob.findMany({
     where: {
@@ -319,14 +663,16 @@ export async function listManagerReminders(input: {
         row.status === "SENT" ? "sent" : row.status === "FAILED" ? "failed" : "pending",
       channel: row.channel,
       recipientLabel: row.recipientLabel || row.recipient,
-      scheduledAtIso: row.scheduledAt
-        ? new Date(row.scheduledAt).toISOString().slice(0, 10)
-        : undefined
+      scheduledAtIso: row.scheduledAt ? formatLocalDateIso(row.scheduledAt) : undefined
     };
   });
 }
 
 export async function createManualBooking(input: ManualBookingPayload, managerId: string) {
+  if (!prisma) {
+    throw getDatabaseUnavailableError();
+  }
+
   const db = prisma as any;
   const venue = await getVenueEditorData(input.venueId);
 
@@ -336,9 +682,30 @@ export async function createManualBooking(input: ManualBookingPayload, managerId
 
   const eventDate = combineDateTime(input.date, input.time);
   const telegram = normalizeTelegram(input.telegram);
-  const comment = [input.hotspotLabel, input.time, input.note, telegram ? `TG: ${telegram}` : ""]
-    .filter(Boolean)
-    .join(" | ");
+  const comment = buildBookingComment({
+    placeLabel: input.hotspotLabel,
+    slotLabel: input.time,
+    note: input.note,
+    telegram,
+    tableId: input.tableId,
+    roomName: input.roomName
+  });
+
+  // Conflict check is skipped for WAITLIST — the whole point is that the slot is occupied
+  if (input.time && input.status !== "WAITLIST") {
+    const conflictingBooking = await findOverlappingManualBooking(db, {
+      venueId: venue.id,
+      date: input.date,
+      time: input.time,
+      placeLabel: input.hotspotLabel,
+      tableId: input.tableId,
+      roomName: input.roomName
+    });
+
+    if (conflictingBooking) {
+      throw new Error("Этот стол уже занят или слишком близок по времени к другой брони.");
+    }
+  }
 
   const booking = await db.bookingRequest.create({
     data: {
@@ -369,7 +736,9 @@ export async function createManualBooking(input: ManualBookingPayload, managerId
     venueId: venue.id,
     venueName: venue.name,
     customerName: booking.customerName,
+    customerPhone: input.phone,
     customerTelegram: telegram,
+    guestCount: input.guests,
     placeLabel: input.hotspotLabel,
     eventDate: booking.eventDate,
     startTime: booking.startTime,
@@ -379,7 +748,125 @@ export async function createManualBooking(input: ManualBookingPayload, managerId
   return booking;
 }
 
+export async function createWalkinBooking(input: {
+  venueId: string;
+  date: string;
+  tableLabel: string;
+  tableId?: string;
+  roomName?: string;
+  managerId: string;
+  upcomingBookingTime?: string;
+}) {
+  if (!prisma) throw getDatabaseUnavailableError();
+  const db = prisma as any;
+
+  const venue = await getVenueEditorData(input.venueId);
+  if (!venue) throw new Error("Объект не найден");
+
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const eventDate = combineDateTime(input.date, timeStr);
+  const comment = buildBookingComment({
+    placeLabel: input.tableLabel,
+    slotLabel: timeStr,
+    tableId: input.tableId,
+    roomName: input.roomName
+  });
+  const archivedBookingIds = await getArchivedBookingIds();
+
+  const existingWalkins = await db.bookingRequest.findMany({
+    where: {
+      venueId: venue.id,
+      eventDate: {
+        gte: new Date(`${input.date}T00:00:00`),
+        lte: new Date(`${input.date}T23:59:59.999`)
+      },
+      status: {
+        in: [...ACTIVE_BOOKING_STATUSES]
+      },
+      sourceLabel: "Walk-in"
+    },
+    select: {
+      id: true,
+      comment: true
+    }
+  });
+
+  const sameTableWalkin = existingWalkins.find((row: any) => {
+    if (archivedBookingIds.has(row.id)) {
+      return false;
+    }
+
+    const parsed = parseBookingComment(row.comment);
+
+    if (parsed.tableId && input.tableId) {
+      return parsed.tableId === input.tableId;
+    }
+
+    if (parsed.roomName && input.roomName) {
+      return (
+        normalizePlaceLabel(parsed.roomName) === normalizePlaceLabel(input.roomName) &&
+        normalizePlaceLabel(parsed.placeLabel) === normalizePlaceLabel(input.tableLabel)
+      );
+    }
+
+    return normalizePlaceLabel(parsed.placeLabel) === normalizePlaceLabel(input.tableLabel);
+  });
+
+  if (sameTableWalkin) {
+    throw new Error("Этот стол уже отмечен занятым");
+  }
+
+  const booking = await db.bookingRequest.create({
+    data: {
+      venueId: venue.id,
+      managerId: input.managerId,
+      eventType: venue.vertical,
+      guestCount: 1,
+      eventDate,
+      startTime: timeStr,
+      customerName: "Walk-in",
+      customerPhone: "—",
+      comment,
+      sourceLabel: "Walk-in",
+      status: "CONFIRMED",
+      confirmedAt: now,
+      managerNote: "Гость без брони"
+    }
+  });
+
+  // Notify admin group about walk-in
+  await sendWalkinNotification({
+    companyId: venue.companyId,
+    venueId: venue.id,
+    venueName: venue.name,
+    placeLabel: input.tableLabel,
+    time: timeStr,
+    kind: "occupied"
+  }).catch(() => {});
+
+  if (input.upcomingBookingTime) {
+    const bookingAt = new Date(`${input.date}T${input.upcomingBookingTime}:00`);
+    const warningAt = new Date(bookingAt.getTime() - 30 * 60 * 1000);
+    await queueWalkinUpcomingWarning({
+      bookingId: booking.id,
+      companyId: venue.companyId,
+      venueId: venue.id,
+      venueName: venue.name,
+      placeLabel: input.tableLabel,
+      bookingTime: input.upcomingBookingTime,
+      scheduledAt: warningAt > now ? warningAt : now
+    }).catch(() => {});
+  }
+
+  return booking;
+}
+
 export async function processNotificationQueue(companyId?: string) {
+  if (!prisma) {
+    return 0;
+  }
+
   const db = prisma as any;
   const jobs = await db.notificationJob.findMany({
     where: {
@@ -442,6 +929,10 @@ export async function processNotificationQueue(companyId?: string) {
 }
 
 export async function offerWaitlistEntry(entryId: string, managerId: string) {
+  if (!prisma) {
+    throw getDatabaseUnavailableError();
+  }
+
   const db = prisma as any;
   const entry = await db.waitlistEntry.findUnique({
     where: {
@@ -486,6 +977,10 @@ export async function resolveWaitlistEntry(
   managerId: string,
   reason: "no-response" | "responded" | "closed"
 ) {
+  if (!prisma) {
+    throw getDatabaseUnavailableError();
+  }
+
   const db = prisma as any;
   const entry = await db.waitlistEntry.findUnique({
     where: {

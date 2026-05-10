@@ -1,5 +1,60 @@
 export type HotspotKind = "scene" | "table" | "zone";
 
+// ─── Floor Plan ───────────────────────────────────────────────────────────────
+
+export type FloorPlanZone = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+};
+
+export type FloorPlanTable = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  radius: number;
+  capacity: number;
+  zoneId?: string;
+  bookingSlots?: string[];
+};
+
+export type FloorPlanRoom = {
+  id: string;
+  name: string;
+  canvasWidth: number;
+  canvasHeight: number;
+  zones: FloorPlanZone[];
+  tables: FloorPlanTable[];
+};
+
+export type FloorPlanData = {
+  rooms: FloorPlanRoom[];
+};
+
+export type FloorPlanTableStatus =
+  | "available"
+  | "new"
+  | "hold_pending"
+  | "confirmed"
+  | "waitlist"
+  | "declined";
+
+export type FloorPlanItemMeta = {
+  statusLabel?: string;
+  detailLabel?: string;
+  hoverLabel?: string;
+  topLabel?: string;
+  topTone?: "available" | "new" | "hold" | "confirmed" | "waitlist" | "declined" | "occupied_booking" | "occupied_walkin";
+  cornerLabel?: string;
+  cornerTone?: "attention" | "late" | "arriving" | "waitlist" | "info";
+  appearance?: "default" | "occupied";
+};
+
 export type HotspotBookingStatus = "available" | "limited" | "waitlist";
 
 export type BookingWorkflowStatus =
@@ -60,7 +115,16 @@ export type ManagerAccount = {
   role: "superadmin" | "admin" | "manager";
 };
 
-export type ManagerAction = "confirm" | "decline" | "hold" | "waitlist" | "cancel" | "archive" | "restore";
+export type ManagerAction =
+  | "confirm"
+  | "decline"
+  | "hold"
+  | "waitlist"
+  | "cancel"
+  | "archive"
+  | "restore"
+  | "arrived"
+  | "complete_visit";
 
 export type ManagerBookingStatus =
   | "new"
@@ -122,6 +186,7 @@ export type Venue = {
   averageBookingLead: string;
   bookingSlots: string[];
   scenes: Scene[];
+  floorPlan?: FloorPlanData | null;
 };
 
 export type BookingRequestPayload = {
@@ -166,6 +231,8 @@ export type ManagerBooking = {
   venueName: string;
   vertical: VenueVertical;
   placeLabel: string;
+  tableId?: string;
+  roomName?: string;
   slotLabel?: string;
   dateLabel: string;
   guestsLabel: string;
@@ -225,12 +292,14 @@ export type ManagerReminderItem = {
 export type ManualBookingPayload = {
   venueId: string;
   hotspotLabel: string;
+  tableId?: string;
+  roomName?: string;
   name: string;
   phone: string;
   telegram?: string;
   date: string;
-  time: string;
+  time?: string;
   guests: number;
   note?: string;
-  status?: "NEW" | "HOLD_PENDING" | "CONFIRMED";
+  status?: "NEW" | "HOLD_PENDING" | "CONFIRMED" | "WAITLIST";
 };

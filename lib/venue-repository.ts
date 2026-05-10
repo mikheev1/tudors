@@ -1,7 +1,7 @@
 import { venues as fallbackVenues } from "@/lib/data";
 import { getVenueBookingConfigs, updateVenueBookingConfig } from "@/lib/venue-booking-config";
-import { prisma } from "@/lib/prisma";
-import type { Hotspot, Scene, Venue } from "@/lib/types";
+import { getDatabaseUnavailableError, prisma } from "@/lib/prisma";
+import type { FloorPlanData, Hotspot, Scene, Venue } from "@/lib/types";
 
 function enrichHotspot(venueId: string, sceneId: string, hotspotId: string, partial: Partial<Hotspot>): Hotspot {
   const fallbackVenue = fallbackVenues.find((item) => item.id === venueId);
@@ -216,8 +216,9 @@ export async function getPublicVenues(): Promise<Venue[]> {
         availability: fallbackVenue?.availability || "available",
         timeTags: fallbackVenue?.timeTags || [],
         averageBookingLead: fallbackVenue?.averageBookingLead || "По запросу",
-        bookingSlots: slotConfig?.bookingSlots || fallbackVenue?.bookingSlots || [],
-        scenes: scenes.length > 0 ? scenes : fallbackVenue?.scenes || []
+        bookingSlots: slotConfig?.bookingSlots ?? [],
+        scenes: scenes.length > 0 ? scenes : fallbackVenue?.scenes || [],
+        floorPlan: (row.floorPlan as FloorPlanData | null) ?? null
       } as Venue;
     });
   } catch {
@@ -231,6 +232,10 @@ export async function getVenueEditorData(venueId: string) {
 }
 
 export async function updateVenueEditorData(input: Venue) {
+  if (!prisma) {
+    throw getDatabaseUnavailableError();
+  }
+
   const db = prisma as any;
 
   await seedVenueToDb(input);
@@ -244,7 +249,8 @@ export async function updateVenueEditorData(input: Venue) {
       description: input.summary,
       vertical: input.vertical,
       capacityMax: input.capacity,
-      ownerManagerId: input.ownerManagerId
+      ownerManagerId: input.ownerManagerId,
+      floorPlan: input.floorPlan ? (input.floorPlan as object) : null
     }
   });
 

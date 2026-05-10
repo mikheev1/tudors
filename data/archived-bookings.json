@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "bookingId": "cmp0bb2j5002n8o1bn3tsy73c",
+    "archivedAt": "2026-05-10T21:56:04.064Z"
+  },
+  {
+    "bookingId": "cmp0b4p6q002j8o1b7md7lwj5",
+    "archivedAt": "2026-05-10T21:56:11.610Z"
+  },
+  {
+    "bookingId": "cmp0b4uy2002l8o1blr0dhnfl",
+    "archivedAt": "2026-05-10T21:56:15.029Z"
+  },
+  {
+    "bookingId": "cmp0bo0w6002v8o1bjj52or3y",
+    "archivedAt": "2026-05-10T22:06:09.238Z"
+  },
+  {
+    "bookingId": "cmp0bc2s4002p8o1bzhn9xprp",
+    "archivedAt": "2026-05-10T22:14:07.401Z"
+  },
+  {
+    "bookingId": "cmp0bom2d002x8o1bolqijb3u",
+    "archivedAt": "2026-05-10T22:15:03.078Z"
+  },
+  {
+    "bookingId": "cmp0cjqy000338o1b66ada3mp",
+    "archivedAt": "2026-05-10T22:30:48.298Z"
+  }
+]

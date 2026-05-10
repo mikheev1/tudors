@@ -22,10 +22,15 @@
 
 html {
   scroll-behavior: smooth;
+  background:
+    radial-gradient(ellipse at 10% 0%, rgba(201, 164, 74, 0.14) 0%, transparent 48%),
+    radial-gradient(ellipse at 90% 100%, rgba(130, 80, 200, 0.1) 0%, transparent 48%),
+    linear-gradient(180deg, #080c18 0%, #060a14 100%);
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
   font-family: var(--font-manrope), sans-serif;
   color: var(--text);
   background:
