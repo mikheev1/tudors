@@ -343,6 +343,7 @@ export function ManagerDashboard({
     walkinBookingId?: string;
     upcomingBookingTime?: string;
     upcomingBookingCustomer?: string;
+    prefilledBookingTime?: string;
   } | null>(null);
   const [inlineManualDialog, setInlineManualDialog] = useState<{
     tableId: string;
@@ -1207,9 +1208,9 @@ export function ManagerDashboard({
           booking.status !== "declined" &&
           booking.eventDateIso
       );
-      const occupiedSlots = new Set(
-        point.bookingSlots.filter((slot) =>
-          pointBookings.some((booking) => {
+      const bookingBySlot = point.bookingSlots.reduce((accumulator, slot) => {
+        const matchedBooking =
+          pointBookings.find((booking) => {
             const candidateWindow = getBookingWindow(operationalDate, slot);
             const existingWindow = getExistingBookingWindow(
               booking.eventDateIso || operationalDate,
@@ -1217,9 +1218,11 @@ export function ManagerDashboard({
             );
 
             return existingWindow ? windowsOverlap(candidateWindow, existingWindow) : false;
-          })
-        )
-      );
+          }) ?? null;
+        accumulator[slot] = matchedBooking;
+        return accumulator;
+      }, {} as Record<string, ManagerBooking | null>);
+      const occupiedSlots = new Set(point.bookingSlots.filter((slot) => Boolean(bookingBySlot[slot])));
       const slotState = point.bookingSlots.reduce((accumulator, slot) => {
         if (isPastOperationalSlot(operationalDate, slot, liveNow)) {
           accumulator[slot] = "past";
@@ -1235,7 +1238,7 @@ export function ManagerDashboard({
         return accumulator;
       }, {} as Record<string, "available" | "past" | "blocked">);
       const availableSlots = new Set(point.bookingSlots);
-      return { point, occupiedSlots, availableSlots, slotState };
+      return { point, occupiedSlots, availableSlots, slotState, bookingBySlot };
     }),
     [bookablePoints, bookingsForOperationalDate, liveNow, operationalDate]
   );
@@ -1794,9 +1797,10 @@ export function ManagerDashboard({
     const form = manualFormRef.current;
     if (!form) return null;
     const fd = new FormData(form);
+    const fallbackTime = manualTime || String(fd.get("time") || "").trim() || nextAvailableManualSlot?.time || "";
     return {
       form, name: String(fd.get("name") || "").trim(), phone: String(fd.get("phone") || "").trim(),
-      telegram: String(fd.get("telegram") || "").trim(), time: String(fd.get("time") || "").trim(),
+      telegram: String(fd.get("telegram") || "").trim(), time: fallbackTime,
       guests: Number(fd.get("guests") || 1), note: String(fd.get("note") || "").trim(),
       status: String(fd.get("status") || "CONFIRMED")
     };
@@ -1832,7 +1836,12 @@ export function ManagerDashboard({
     }
   }
 
-  function openManualBookingForTable(tableId: string, tableLabel: string, roomName?: string) {
+  function openManualBookingForTable(
+    tableId: string,
+    tableLabel: string,
+    roomName?: string,
+    presetTime?: string
+  ) {
     if (roomName) {
       const matchedRoom = floorPlanRooms.find((room) => normalizePlanKey(room.name) === normalizePlanKey(roomName));
       if (matchedRoom) {
@@ -1844,14 +1853,82 @@ export function ManagerDashboard({
     selectPointByLabel(tableLabel, roomName, "floor-table");
     setManualDate(operationalDate);
     setManualStatus("CONFIRMED");
-    setManualTime("");
-    setPendingManualTime("");
+    setManualTime(presetTime || "");
+    setPendingManualTime(presetTime || "");
     setWalkinDialog(null);
     setInlineManualDialog({
       tableId,
       tableLabel,
       roomName
     });
+  }
+
+  function getRelatedHallBooking(tableId: string, preferredBookingId?: string | null) {
+    if (preferredBookingId) {
+      const exactBooking = bookingsForOperationalDate.find((booking) => booking.id === preferredBookingId);
+      if (exactBooking) {
+        return exactBooking;
+      }
+    }
+
+    return (
+      hallAttentionBookings.find((booking) => getPrimaryBookingTableId(booking) === tableId) ??
+      hallLateBookings.find((booking) => getPrimaryBookingTableId(booking) === tableId) ??
+      hallArrivingSoon.find((booking) => getPrimaryBookingTableId(booking) === tableId) ??
+      hallPlainBookings.find((booking) => getPrimaryBookingTableId(booking) === tableId) ??
+      hallWalkinBookings.find((booking) => getPrimaryBookingTableId(booking) === tableId) ??
+      null
+    );
+  }
+
+  function openHallTableContext(
+    tableId: string,
+    tableLabel: string,
+    roomName?: string,
+    options?: {
+      prefilledBookingTime?: string;
+      preferredBookingId?: string | null;
+    }
+  ) {
+    setHallSelectedTableId(tableId);
+
+    const walkinBookingId = floorPlanTableState.walkinBookingIds[tableId];
+    const status = floorPlanTableState.statuses[tableId] ?? "available";
+    const relatedBooking = getRelatedHallBooking(tableId, options?.preferredBookingId);
+    const upcomingBooking =
+      (options?.prefilledBookingTime
+        ? hallReservationBookingsByTableId[tableId]?.find(
+            (booking) => booking.startTimeRaw === options.prefilledBookingTime
+          )
+        : null) ??
+      nextReservedBookingByTableId[tableId];
+
+    if (relatedBooking) {
+      setHallHighlightedBookingId(relatedBooking.id);
+    }
+
+    if (
+      status === "available" ||
+      Boolean(walkinBookingId) ||
+      Boolean(upcomingBooking) ||
+      relatedBooking?.sourceLabel === "Walk-in" ||
+      Boolean(options?.prefilledBookingTime)
+    ) {
+      setWalkinDialog({
+        tableId,
+        tableLabel,
+        roomName,
+        walkinBookingId,
+        upcomingBookingCustomer: upcomingBooking?.customerName,
+        upcomingBookingTime: upcomingBooking?.startTimeRaw,
+        prefilledBookingTime: options?.prefilledBookingTime
+      });
+      return;
+    }
+
+    if (relatedBooking) {
+      setSelectedBookingId(relatedBooking.id);
+    }
   }
 
   function handleFloorRoomChange(room: FloorPlanRoom) {
@@ -1912,6 +1989,10 @@ export function ManagerDashboard({
     event.preventDefault();
     const collected = collectManualFormData();
     if (!collected) { pushNotice({ kind: "error", message: "Форма недоступна" }); return; }
+    if (collected.status !== "WAITLIST" && !collected.time) {
+      pushNotice({ kind: "error", message: "Выберите время брони перед сохранением." });
+      return;
+    }
     if (collected.status === "WAITLIST" && collected.time) {
       const slotOccupied = manualSlots.find((s) => s.time === collected.time)?.status === "unavailable";
       if (!slotOccupied) {
@@ -2165,7 +2246,8 @@ export function ManagerDashboard({
                         openManualBookingForTable(
                           walkinDialog.tableId,
                           walkinDialog.tableLabel,
-                          walkinDialog.roomName
+                          walkinDialog.roomName,
+                          walkinDialog.prefilledBookingTime
                         )
                       }
                       type="button"
@@ -2300,7 +2382,11 @@ export function ManagerDashboard({
                 <div className="m-detail-actions">
                   <button
                     className="m-btn m-btn-gold"
-                    disabled={isPending || (manualStatus === "WAITLIST" && !!manualTime && manualSlots.find((s) => s.time === manualTime)?.status !== "unavailable")}
+                    disabled={
+                      isPending ||
+                      (manualStatus !== "WAITLIST" && !manualTime && !nextAvailableManualSlot) ||
+                      (manualStatus === "WAITLIST" && !!manualTime && manualSlots.find((s) => s.time === manualTime)?.status !== "unavailable")
+                    }
                     type="submit"
                   >
                     Записать бронь
@@ -2598,31 +2684,13 @@ export function ManagerDashboard({
                                 data={selectedFloorPlan!}
                                 lateIds={hallLateIds}
                                 onRoomChange={handleFloorRoomChange}
-                                onTableSelect={(table) => {
-                                  setHallSelectedTableId(table.id);
-                                  const walkinBookingId = floorPlanTableState.walkinBookingIds[table.id];
-                                  const status = floorPlanTableState.statuses[table.id] ?? "available";
-                                  const upcomingBooking = nextReservedBookingByTableId[table.id];
-                                  const relatedBooking =
-                                    hallAttentionBookings.find((b) => getPrimaryBookingTableId(b) === table.id) ??
-                                    hallLateBookings.find((b) => getPrimaryBookingTableId(b) === table.id) ??
-                                    hallArrivingSoon.find((b) => getPrimaryBookingTableId(b) === table.id) ??
-                                    hallPlainBookings.find((b) => getPrimaryBookingTableId(b) === table.id) ??
-                                    hallWalkinBookings.find((b) => getPrimaryBookingTableId(b) === table.id);
-                                  if (relatedBooking) setHallHighlightedBookingId(relatedBooking.id);
-                                  if (status === "available" || walkinBookingId || upcomingBooking) {
-                                    setWalkinDialog({
-                                      tableId: table.id,
-                                      tableLabel: table.label,
-                                      roomName: floorPlanTableById[table.id]?.roomName,
-                                      walkinBookingId,
-                                      upcomingBookingCustomer: upcomingBooking?.customerName,
-                                      upcomingBookingTime: upcomingBooking?.startTimeRaw
-                                    });
-                                    return;
-                                  }
-                                  if (relatedBooking) setSelectedBookingId(relatedBooking.id);
-                                }}
+                                onTableSelect={(table) =>
+                                  openHallTableContext(
+                                    table.id,
+                                    table.label,
+                                    floorPlanTableById[table.id]?.roomName
+                                  )
+                                }
                                 selectedRoomId={selectedFloorRoomId || undefined}
                                 selectedTableId={hallSelectedTableId ?? undefined}
                                 showOperationalLegend
@@ -2684,16 +2752,33 @@ export function ManagerDashboard({
                                       return (
                                         <button
                                           className={`m-occupancy-cell ${unavailable ? "busy" : "free"}`}
-                                          disabled={unavailable}
                                           key={`${row.point.id}-${slot}`}
                                           onClick={() => {
-                                            if (unavailable) return;
-                                            setSelectedHotspotId(row.point.id);
-                                            setSelectedSceneId(manualScenes.find((s) => s.title === row.point.sceneTitle)?.id || selectedSceneId);
-                                            setManualDate(operationalDate);
-                                            setPendingManualTime(slot);
-                                            setManualTime(slot);
-                                            setActiveTab("manual");
+                                            const tableId = row.point.floorTableId || row.point.id;
+                                            const bookingAtSlot = row.bookingBySlot[slot];
+
+                                            if (state === "available") {
+                                              openHallTableContext(tableId, row.point.label, row.point.roomName, {
+                                                prefilledBookingTime: slot
+                                              });
+                                              return;
+                                            }
+
+                                            if (state === "blocked") {
+                                              if (bookingAtSlot?.sourceLabel === "Walk-in") {
+                                                openHallTableContext(tableId, row.point.label, row.point.roomName);
+                                                return;
+                                              }
+
+                                              if (bookingAtSlot) {
+                                                setHallSelectedTableId(tableId);
+                                                setHallHighlightedBookingId(bookingAtSlot.id);
+                                                setSelectedBookingId(bookingAtSlot.id);
+                                                return;
+                                              }
+                                            }
+
+                                            openHallTableContext(tableId, row.point.label, row.point.roomName);
                                           }}
                                           type="button"
                                         >
@@ -3145,7 +3230,11 @@ export function ManagerDashboard({
                 <div className="m-form-actions">
                   <button
                     className="m-btn m-btn-gold"
-                    disabled={isPending || (manualStatus === "WAITLIST" && !!manualTime && manualSlots.find((s) => s.time === manualTime)?.status !== "unavailable")}
+                    disabled={
+                      isPending ||
+                      (manualStatus !== "WAITLIST" && !manualTime && !nextAvailableManualSlot) ||
+                      (manualStatus === "WAITLIST" && !!manualTime && manualSlots.find((s) => s.time === manualTime)?.status !== "unavailable")
+                    }
                     type="submit"
                   >Записать бронь</button>
                   <button className="m-btn" disabled={isPending} onClick={handleManualWaitlist} type="button">В лист ожидания</button>

@@ -11,7 +11,9 @@ import { getCompanyThemes, getManagersByCompany } from "@/lib/company-config";
 import { venues } from "@/lib/data";
 import {
   offerWaitlistEntry,
+  processNotificationQueue,
   scheduleBookingNotifications,
+  sendManagerActionNotification,
   sendWaitlistPromotedNotification,
   sendWalkinNotification
 } from "@/lib/operations";
@@ -546,6 +548,8 @@ export async function updateRealBookingStatus(input: {
     throw new Error("Forbidden booking access");
   }
 
+  const parsedComment = parseBookingComment(existing.comment);
+
   if (input.action === "archive") {
     await archiveBooking(existing.id);
     return existing;
@@ -580,6 +584,23 @@ export async function updateRealBookingStatus(input: {
         failedAt: new Date(),
         errorMessage: "Гость уже пришёл"
       }
+    });
+
+    await sendManagerActionNotification({
+      bookingRequestId: updated.id,
+      companyId: existing.venue?.companyId ?? null,
+      venueId: existing.venueId ?? null,
+      kind: "booking-arrived",
+      message: [
+        "👋 Гость пришёл и посажен",
+        "",
+        `📍 ${existing.venue?.name || "Площадка"} · ${parsedComment.placeLabel}`,
+        `👤 ${updated.customerName}`,
+        updated.customerPhone ? `📞 ${updated.customerPhone}` : null,
+        `📅 ${formatDateLabel(existing.eventDate, existing.startTime)}`
+      ]
+        .filter((line) => line !== null)
+        .join("\n")
     });
 
     return updated;
@@ -620,11 +641,31 @@ export async function updateRealBookingStatus(input: {
       }).catch(() => {});
     }
 
+    if (existing.sourceLabel === "Walk-in") {
+      await archiveBooking(existing.id);
+      return existing;
+    }
+
+    await sendManagerActionNotification({
+      bookingRequestId: existing.id,
+      companyId: existing.venue?.companyId ?? null,
+      venueId: existing.venueId ?? null,
+      kind: "visit-completed",
+      message: [
+        "✅ Стол освобождён",
+        "",
+        `📍 ${existing.venue?.name || "Площадка"} · ${parsedComment.placeLabel}`,
+        existing.customerName ? `👤 ${existing.customerName}` : null,
+        existing.customerPhone ? `📞 ${existing.customerPhone}` : null,
+        `📅 ${formatDateLabel(existing.eventDate, existing.startTime)}`
+      ]
+        .filter((line) => line !== null)
+        .join("\n")
+    });
+
     await archiveBooking(existing.id);
     return existing;
   }
-
-  const parsedComment = parseBookingComment(existing.comment);
 
   if (
     (input.action === "confirm" || input.action === "hold") &&
@@ -687,6 +728,36 @@ export async function updateRealBookingStatus(input: {
     startTime: updated.startTime,
     status: updated.status
   });
+
+  await sendManagerActionNotification({
+    bookingRequestId: updated.id,
+    companyId: existing.venue?.companyId ?? null,
+    venueId: updated.venueId ?? null,
+    kind: `booking-${input.action}`,
+    message: [
+      input.action === "confirm"
+        ? "✅ Бронь подтверждена"
+        : input.action === "hold"
+          ? "🟠 Бронь переведена в hold"
+          : input.action === "waitlist"
+            ? "🟣 Бронь переведена в waitlist"
+            : input.action === "cancel"
+              ? "❌ Бронь снята"
+              : "⛔ Заявка отклонена",
+      "",
+      `📍 ${existing.venue?.name || "Площадка"} · ${parsedComment.placeLabel}`,
+      `👤 ${updated.customerName}`,
+      updated.customerPhone ? `📞 ${updated.customerPhone}` : null,
+      `📅 ${formatDateLabel(updated.eventDate, updated.startTime)}`,
+      input.action === "hold" ? "→ Hold активен 30 минут" : null
+    ]
+      .filter((line) => line !== null)
+      .join("\n")
+  });
+
+  if (existing.venue?.companyId) {
+    await processNotificationQueue(existing.venue.companyId);
+  }
 
   if (
     (input.action === "cancel" || input.action === "decline") &&
@@ -939,7 +1010,7 @@ export async function assignBookingTime(input: {
   });
   const newEventDate = combineDateTime(eventDateIso, input.time);
 
-  await db.bookingRequest.update({
+  const updated = await db.bookingRequest.update({
     where: { id: input.bookingId },
     data: {
       startTime: input.time,
@@ -947,5 +1018,41 @@ export async function assignBookingTime(input: {
       comment: newComment,
       managerNote: `Время назначено менеджером: ${input.time}`
     }
+  });
+
+  await scheduleBookingNotifications({
+    bookingId: updated.id,
+    companyId: existing.venue?.companyId,
+    venueId: updated.venueId,
+    venueName: existing.venue?.name || "Площадка",
+    customerName: updated.customerName,
+    customerPhone: updated.customerPhone,
+    customerTelegram: parsedComment.telegram,
+    guestCount: updated.guestCount,
+    placeLabel: parsedComment.placeLabel,
+    eventDate: updated.eventDate,
+    startTime: updated.startTime,
+    status: updated.status
+  });
+
+  if (existing.venue?.companyId) {
+    await processNotificationQueue(existing.venue.companyId);
+  }
+
+  await sendManagerActionNotification({
+    bookingRequestId: updated.id,
+    companyId: existing.venue?.companyId ?? null,
+    venueId: updated.venueId ?? null,
+    kind: "booking-time-assigned",
+    message: [
+      "🕒 Брони назначено время",
+      "",
+      `📍 ${existing.venue?.name || "Площадка"} · ${parsedComment.placeLabel}`,
+      `👤 ${updated.customerName}`,
+      updated.customerPhone ? `📞 ${updated.customerPhone}` : null,
+      `📅 ${formatDateLabel(updated.eventDate, updated.startTime)}`
+    ]
+      .filter((line) => line !== null)
+      .join("\n")
   });
 }

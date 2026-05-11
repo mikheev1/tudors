@@ -232,6 +232,29 @@ function buildCustomerReminderMessage(
   return `${brandName}: напоминаем, что через ${minutes} мин. у вас бронь ${placeLabel} в ${venueName}. Если планы изменились, ответьте на сообщение или свяжитесь с менеджером.`;
 }
 
+function buildManagerActionMessage(input: {
+  title: string;
+  venueName: string;
+  placeLabel?: string | null;
+  customerName?: string | null;
+  phone?: string | null;
+  date?: Date | string | null;
+  time?: string | null;
+  extra?: string | null;
+}) {
+  return [
+    input.title,
+    "",
+    `📍 ${input.venueName}${input.placeLabel ? ` · ${input.placeLabel}` : ""}`,
+    input.customerName ? `👤 ${input.customerName}` : null,
+    input.phone ? `📞 ${input.phone}` : null,
+    input.date ? `📅 ${fmtNotifDate(new Date(input.date), input.time)}` : input.time ? `🕐 ${input.time}` : null,
+    input.extra || null
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+}
+
 async function queueNotificationJob(input: {
   bookingRequestId?: string;
   companyId?: string;
@@ -275,6 +298,110 @@ async function clearPendingNotificationJobs(bookingId: string, kinds?: string[])
       failedAt: new Date(),
       errorMessage: "Заменено новым состоянием брони"
     }
+  });
+}
+
+async function sendTelegramAdminNow(input: {
+  bookingRequestId?: string;
+  companyId?: string | null;
+  venueId?: string | null;
+  kind: string;
+  message: string;
+}) {
+  if (!prisma) {
+    return;
+  }
+
+  const db = prisma as any;
+  const companyTheme = input.companyId ? await getCompanyTheme(input.companyId) : null;
+  const recipient = companyTheme?.telegramAdminChatId?.trim();
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!recipient) {
+    return;
+  }
+
+  const baseData = {
+    bookingRequestId: input.bookingRequestId ?? null,
+    companyId: input.companyId ?? null,
+    venueId: input.venueId ?? null,
+    kind: input.kind,
+    channel: "telegram-admin",
+    recipient,
+    recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
+    message: input.message,
+    scheduledAt: new Date()
+  };
+
+  try {
+    if (!token) {
+      throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+    }
+
+    if (!/^-?\d+$/.test(recipient)) {
+      throw new Error(`Некорректный telegram chat id: ${recipient}`);
+    }
+
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chat_id: recipient,
+        text: input.message
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Telegram API ${response.status}`);
+    }
+
+    await db.notificationJob.create({
+      data: {
+        ...baseData,
+        status: "SENT",
+        sentAt: new Date(),
+        errorMessage: null
+      }
+    });
+  } catch (error) {
+    await db.notificationJob.create({
+      data: {
+        ...baseData,
+        status: "FAILED",
+        failedAt: new Date(),
+        errorMessage: error instanceof Error ? error.message : "Unknown notification error"
+      }
+    });
+    throw error;
+  }
+}
+
+export async function sendManagerActionNotification(input: {
+  companyId?: string | null;
+  venueId?: string | null;
+  bookingRequestId?: string | null;
+  kind: string;
+  message: string;
+}) {
+  if (!prisma) {
+    return;
+  }
+
+  const companyTheme = input.companyId ? await getCompanyTheme(input.companyId) : null;
+  const managerChatId = companyTheme?.telegramAdminChatId;
+
+  if (!managerChatId) {
+    return;
+  }
+
+  await sendTelegramAdminNow({
+    bookingRequestId: input.bookingRequestId ?? undefined,
+    companyId: input.companyId ?? undefined,
+    venueId: input.venueId ?? undefined,
+    kind: input.kind,
+    message: input.message
   });
 }
 
@@ -333,16 +460,12 @@ export async function scheduleBookingNotifications(input: {
     const isConfirmed = input.status === "CONFIRMED";
 
     if (isNew || isConfirmed) {
-      await queueNotificationJob({
+      await sendTelegramAdminNow({
         bookingRequestId: input.bookingId,
         companyId: input.companyId ?? undefined,
         venueId: input.venueId ?? undefined,
         kind: isNew ? "new-booking" : "booking-confirmed",
-        channel: "telegram-admin",
-        recipient: managerChatId,
-        recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
-        message: isNew ? buildNewBookingMessage(msgParams) : buildConfirmedMessage(msgParams),
-        scheduledAt: now
+        message: isNew ? buildNewBookingMessage(msgParams) : buildConfirmedMessage(msgParams)
       });
     }
 
@@ -429,13 +552,10 @@ export async function sendWalkinNotification(input: {
   const managerChatId = companyTheme?.telegramAdminChatId;
   if (!managerChatId) return;
 
-  await queueNotificationJob({
+  await sendTelegramAdminNow({
     companyId: input.companyId ?? undefined,
     venueId: input.venueId ?? undefined,
     kind: input.kind === "occupied" ? "walkin-occupied" : "walkin-released",
-    channel: "telegram-admin",
-    recipient: managerChatId,
-    recipientLabel: companyTheme?.telegramBotName || "Telegram admin",
     message:
       input.kind === "occupied"
         ? buildWalkinOccupiedMessage({
@@ -446,8 +566,7 @@ export async function sendWalkinNotification(input: {
         : buildWalkinReleasedMessage({
             venueName: input.venueName,
             placeLabel: input.placeLabel
-          }),
-    scheduledAt: new Date()
+          })
   });
 }
 
@@ -538,8 +657,7 @@ export async function createWaitlistEntry(payload: {
 
   const db = prisma as any;
   const venue = await getVenueEditorData(payload.venueId);
-
-  return db.waitlistEntry.create({
+  const entry = await db.waitlistEntry.create({
     data: {
       venueId: payload.venueId,
       companyId: venue?.companyId ?? null,
@@ -556,6 +674,23 @@ export async function createWaitlistEntry(payload: {
       status: "ACTIVE"
     }
   });
+
+  await sendManagerActionNotification({
+    companyId: venue?.companyId ?? null,
+    venueId: venue?.id ?? null,
+    kind: "waitlist-created",
+    message: buildManagerActionMessage({
+      title: "🟣 Клиент добавлен в waitlist",
+      venueName: venue?.name || payload.venueName,
+      placeLabel: payload.hotspotLabel ?? payload.sceneTitle,
+      customerName: payload.name,
+      phone: payload.phone,
+      date: payload.date || null,
+      time: payload.time || null
+    })
+  });
+
+  return entry;
 }
 
 export async function listManagerWaitlist(input: {
@@ -673,6 +808,10 @@ export async function createManualBooking(input: ManualBookingPayload, managerId
     throw getDatabaseUnavailableError();
   }
 
+  if (input.status !== "WAITLIST" && !input.time) {
+    throw new Error("Для брони нужно выбрать время.");
+  }
+
   const db = prisma as any;
   const venue = await getVenueEditorData(input.venueId);
 
@@ -744,6 +883,33 @@ export async function createManualBooking(input: ManualBookingPayload, managerId
     startTime: booking.startTime,
     status: booking.status
   });
+
+  if (booking.status === "HOLD_PENDING" || booking.status === "WAITLIST") {
+    await sendManagerActionNotification({
+      bookingRequestId: booking.id,
+      companyId: venue.companyId,
+      venueId: venue.id,
+      kind: booking.status === "HOLD_PENDING" ? "booking-held" : "booking-waitlist",
+      message: buildManagerActionMessage({
+        title:
+          booking.status === "HOLD_PENDING"
+            ? "🟠 Бронь поставлена на hold"
+            : "🟣 Клиент добавлен в waitlist",
+        venueName: venue.name,
+        placeLabel: input.hotspotLabel,
+        customerName: booking.customerName,
+        phone: input.phone,
+        date: booking.eventDate,
+        time: booking.startTime,
+        extra:
+          booking.status === "HOLD_PENDING"
+            ? "→ Hold активен 30 минут"
+            : "→ Клиент ждёт освобождения слота"
+      })
+    });
+  }
+
+  await processNotificationQueue(venue.companyId);
 
   return booking;
 }
@@ -887,14 +1053,14 @@ export async function processNotificationQueue(companyId?: string) {
 
   for (const job of jobs) {
     try {
-      if (token && job.channel === "telegram-admin" && /^-?\\d+$/.test(job.recipient)) {
+      if (token && job.channel === "telegram-admin" && /^-?\d+$/.test(job.recipient.trim())) {
         const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            chat_id: job.recipient,
+            chat_id: job.recipient.trim(),
             text: job.message
           })
         });
@@ -902,6 +1068,8 @@ export async function processNotificationQueue(companyId?: string) {
         if (!response.ok) {
           throw new Error(`Telegram API ${response.status}`);
         }
+      } else if (job.channel === "telegram-admin") {
+        throw new Error(`Некорректный telegram chat id: ${job.recipient}`);
       }
 
       await db.notificationJob.update({
@@ -959,15 +1127,11 @@ export async function offerWaitlistEntry(entryId: string, managerId: string) {
   });
 
   if (companyTheme?.telegramAdminChatId) {
-    await queueNotificationJob({
+    await sendTelegramAdminNow({
       companyId: venue?.companyId ?? undefined,
       venueId: venue?.id ?? undefined,
       kind: "waitlist-offer",
-      channel: "telegram-admin",
-      recipient: companyTheme.telegramAdminChatId,
-      recipientLabel: companyTheme.telegramBotName || "Telegram admin",
-      message: `${venue?.name || "Площадка"}: свяжитесь с ${entry.customerName} по листу ожидания (${entry.hotspotLabel || "без точки"}) и вручную согласуйте бронь.`,
-      scheduledAt: new Date()
+      message: `${venue?.name || "Площадка"}: свяжитесь с ${entry.customerName} по листу ожидания (${entry.hotspotLabel || "без точки"}) и вручную согласуйте бронь.`
     });
   }
 }
@@ -992,7 +1156,7 @@ export async function resolveWaitlistEntry(
     throw new Error("Запись waitlist не найдена");
   }
 
-  await db.waitlistEntry.update({
+  const updated = await db.waitlistEntry.update({
     where: { id: entryId },
     data: {
       status: "RESOLVED",
@@ -1005,5 +1169,27 @@ export async function resolveWaitlistEntry(
             ? "Клиент ответил, ожидание закрыто и можно оформить бронь"
           : "Запись закрыта администратором"
     }
+  });
+
+  const venue = await getVenueEditorData(entry.venueId);
+  await sendManagerActionNotification({
+    companyId: venue?.companyId ?? null,
+    venueId: venue?.id ?? null,
+    kind: "waitlist-resolved",
+    message: buildManagerActionMessage({
+      title:
+        reason === "no-response"
+          ? "⚪ Waitlist закрыт: нет ответа"
+          : reason === "responded"
+            ? "✅ Waitlist закрыт: клиент ответил"
+            : "⚪ Waitlist закрыт",
+      venueName: venue?.name || "Площадка",
+      placeLabel: entry.hotspotLabel || entry.sceneTitle,
+      customerName: updated.customerName,
+      phone: updated.customerPhone,
+      date: updated.requestedDate,
+      time: updated.requestedTime,
+      extra: reason === "responded" ? "→ Можно оформлять бронь" : null
+    })
   });
 }

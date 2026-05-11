@@ -644,38 +644,38 @@ export function FloorPlanViewer({
           </div>
           <div className="m-plan-legend-item">
             <span className="m-plan-legend-badge">X</span>
-            <span>Недоступно</span>
+            <span>Блок</span>
           </div>
           <div className="m-plan-legend-item">
             <span className="m-plan-legend-badge is-occupied">BR</span>
-            <span>Гость по брони сидит</span>
+            <span>По брони</span>
           </div>
           <div className="m-plan-legend-item">
             <span className="m-plan-legend-badge is-walkin">WI</span>
-            <span>Walk-in сидит</span>
+            <span>Walk-in</span>
           </div>
           {showOperationalLegend ? (
             <div className="m-plan-legend-item">
               <span className="m-plan-legend-badge is-arriving">→</span>
-              <span>Скоро придут</span>
+              <span>Скоро</span>
             </div>
           ) : null}
           {showOperationalLegend ? (
             <div className="m-plan-legend-item">
               <span className="m-plan-legend-badge is-late">⌛</span>
-              <span>Гость опаздывает</span>
+              <span>Опозд.</span>
             </div>
           ) : null}
           {showOperationalLegend ? (
             <div className="m-plan-legend-item">
               <span className="m-plan-legend-badge is-attention">!</span>
-              <span>Нужно действие</span>
+              <span>Действие</span>
             </div>
           ) : null}
           {showOperationalLegend ? (
             <div className="m-plan-legend-item">
               <span className="m-plan-legend-badge is-waitlist">W</span>
-              <span>Лист ожидания</span>
+              <span>Waitlist</span>
             </div>
           ) : null}
         </div>
