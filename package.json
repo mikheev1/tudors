@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "db:seed-demo": "npx --yes tsx prisma/seed-demo.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",

@@ -327,6 +327,41 @@ export function ManagerDashboard({
   const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
   const [manualSlots, setManualSlots] = useState<Array<{ time: string; label: string; status: string }>>([]);
   const [isManualSlotLoading, setIsManualSlotLoading] = useState(false);
+  const [manualConflict, setManualConflict] = useState<null | {
+    customerName: string | null;
+    placeLabel: string;
+    windowLabel: string;
+  }>(null);
+  const [phoneInputValue, setPhoneInputValue] = useState("");
+  type WalkinSuggestion = {
+    tableId: string;
+    tableLabel: string;
+    roomName: string;
+    roomId: string;
+    capacity: number;
+    nextBookingTime: string | null;
+    availableMinutes: number | null;
+  };
+  const [walkinSearchOpen, setWalkinSearchOpen] = useState(false);
+  const [walkinGuests, setWalkinGuests] = useState(2);
+  const [walkinDuration, setWalkinDuration] = useState(90);
+  const [walkinSuggestions, setWalkinSuggestions] = useState<WalkinSuggestion[] | null>(null);
+  const [walkinSearchLoading, setWalkinSearchLoading] = useState(false);
+  const [walkinSeatingId, setWalkinSeatingId] = useState<string | null>(null);
+  const [walkinPreferredRoomId, setWalkinPreferredRoomId] = useState<string>("");
+  const [guestProfile, setGuestProfile] = useState<null | {
+    phone: string;
+    primaryName: string;
+    totalBookings: number;
+    confirmedBookings: number;
+    noShowCount: number;
+    lastVisitLabel: string | null;
+    averageGuests: number;
+    favoriteVenueName: string | null;
+    favoritePlaceLabel: string | null;
+    flags: Array<"first-visit" | "regular" | "vip" | "risk">;
+  }>(null);
+  const [guestLookupLoading, setGuestLookupLoading] = useState(false);
   const [superadminPage, setSuperadminPage] = useState(1);
   const [draggedBookingId, setDraggedBookingId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<BookingBoardColumnKey | null>(null);
@@ -1617,6 +1652,130 @@ export function ManagerDashboard({
     void loadSlots();
   }, [manualDate, manualTime, manualStatus, pendingManualTime, selectedPoint, selectedVenue]);
 
+  // ── Conflict check для ручной брони ───────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    async function checkConflict() {
+      if (!selectedVenue || !selectedPoint || !manualDate || !manualTime || manualStatus === "WAITLIST") {
+        setManualConflict(null);
+        return;
+      }
+      const params = new URLSearchParams({
+        venueId: selectedVenue.id,
+        date: manualDate,
+        time: manualTime,
+        placeLabel: selectedPoint.label,
+      });
+      if (selectedPoint.floorTableId) params.set("tableId", selectedPoint.floorTableId);
+      if (selectedPoint.roomName) params.set("roomName", selectedPoint.roomName);
+      try {
+        const res = await fetch(`/api/admin/bookings/check-conflict?${params}`, { cache: "no-store" });
+        if (!res.ok || cancelled) {
+          if (!cancelled) setManualConflict(null);
+          return;
+        }
+        const data = (await res.json()) as { conflict?: typeof manualConflict };
+        if (!cancelled) setManualConflict(data.conflict ?? null);
+      } catch {
+        if (!cancelled) setManualConflict(null);
+      }
+    }
+    void checkConflict();
+    return () => { cancelled = true; };
+  }, [selectedVenue, selectedPoint, manualDate, manualTime, manualStatus]);
+
+  // ── Guest lookup при вводе телефона ───────────────────────────────────────
+  useEffect(() => {
+    const digits = phoneInputValue.replace(/\D+/g, "");
+    if (digits.length < 7) {
+      setGuestProfile(null);
+      setGuestLookupLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setGuestLookupLoading(true);
+    const handle = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ phone: phoneInputValue });
+        const res = await fetch(`/api/admin/guests/lookup?${params}`, { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { profile?: typeof guestProfile };
+        if (!cancelled) setGuestProfile(data.profile ?? null);
+      } catch {
+        if (!cancelled) setGuestProfile(null);
+      } finally {
+        if (!cancelled) setGuestLookupLoading(false);
+      }
+    }, 350);
+    return () => { cancelled = true; window.clearTimeout(handle); };
+  }, [phoneInputValue]);
+
+  async function runWalkinSearch() {
+    if (!selectedVenue) return;
+    setWalkinSearchLoading(true);
+    setWalkinSuggestions(null);
+    try {
+      const params = new URLSearchParams({
+        venueId: selectedVenue.id,
+        guests: String(walkinGuests),
+        durationMinutes: String(walkinDuration),
+      });
+      if (walkinPreferredRoomId) params.set("preferredRoomId", walkinPreferredRoomId);
+      const res = await fetch(`/api/admin/walkin/suggest?${params}`, { cache: "no-store" });
+      const data = (await res.json()) as { suggestions?: WalkinSuggestion[] };
+      setWalkinSuggestions(data.suggestions || []);
+    } catch {
+      setWalkinSuggestions([]);
+    } finally {
+      setWalkinSearchLoading(false);
+    }
+  }
+
+  async function seatWalkinSuggestion(suggestion: WalkinSuggestion) {
+    if (!selectedVenue || walkinSeatingId) return;
+    setWalkinSeatingId(suggestion.tableId);
+    try {
+      const todayIso = getTodayIso();
+      const res = await fetch("/api/admin/walkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId: selectedVenue.id,
+          date: todayIso,
+          tableLabel: suggestion.tableLabel,
+          tableId: suggestion.tableId,
+          roomName: suggestion.roomName,
+          upcomingBookingTime: suggestion.nextBookingTime || undefined,
+        }),
+      });
+      const payload = (await res.json()) as { message?: string };
+      if (!res.ok) {
+        pushNotice({ kind: "error", message: payload.message || "Не удалось посадить" });
+        return;
+      }
+      pushNotice({
+        kind: "success",
+        message: `Посадили на ${suggestion.tableLabel} (${suggestion.roomName})`,
+      });
+      setWalkinSearchOpen(false);
+      setWalkinSuggestions(null);
+      router.refresh();
+    } finally {
+      setWalkinSeatingId(null);
+    }
+  }
+
+  function applyGuestNameToForm() {
+    const form = manualFormRef.current;
+    if (!form || !guestProfile?.primaryName) return;
+    const nameInput = form.elements.namedItem("name");
+    if (nameInput instanceof HTMLInputElement) {
+      nameInput.value = guestProfile.primaryName;
+      // триггерим визуальное обновление placeholder/required UI на всякий случай
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
   function executeBookingAction(bookingId: string, action: ManagerAction) {
     startTransition(async () => {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
@@ -2159,6 +2318,135 @@ export function ManagerDashboard({
       ) : null}
 
       {/* ── WALK-IN DIALOG ───────────────────────────────────── */}
+      {walkinSearchOpen ? (
+        <div
+          className="m-backdrop m-backdrop-walkin"
+          role="presentation"
+          onClick={() => setWalkinSearchOpen(false)}
+        >
+          <div className="m-dialog" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="m-dialog-head">
+              <div className="m-dialog-head-copy">
+                <span className="m-dialog-eyebrow">Walk-in</span>
+                <h2 className="m-dialog-title">Гость с улицы — подобрать стол</h2>
+                <p className="m-dialog-desc" style={{ marginTop: 6 }}>
+                  Укажи количество гостей и длительность. Система предложит свободные столы прямо сейчас.
+                </p>
+              </div>
+              <button className="m-btn" onClick={() => setWalkinSearchOpen(false)} type="button">✕</button>
+            </div>
+            <div className="m-dialog-body">
+              <div className="m-form-grid" style={{ marginBottom: 16 }}>
+                <div className="m-field">
+                  <label className="m-field-label">Гостей</label>
+                  <input
+                    className="m-input"
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={walkinGuests}
+                    onChange={(e) => setWalkinGuests(Math.max(1, Number(e.target.value) || 1))}
+                  />
+                </div>
+                <div className="m-field">
+                  <label className="m-field-label">На сколько (мин)</label>
+                  <select
+                    className="m-select"
+                    value={walkinDuration}
+                    onChange={(e) => setWalkinDuration(Number(e.target.value) || 90)}
+                  >
+                    {[45, 60, 90, 120, 150, 180, 240].map((m) => (
+                      <option key={m} value={m}>{m} мин</option>
+                    ))}
+                  </select>
+                </div>
+                {floorPlanRooms.length > 1 ? (
+                  <div className="m-field">
+                    <label className="m-field-label">Зал (опционально)</label>
+                    <select
+                      className="m-select"
+                      value={walkinPreferredRoomId}
+                      onChange={(e) => setWalkinPreferredRoomId(e.target.value)}
+                    >
+                      <option value="">Любой</option>
+                      {floorPlanRooms.map((room) => (
+                        <option key={room.id} value={room.id}>{room.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="m-detail-actions" style={{ marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className="m-btn m-btn-gold"
+                  disabled={walkinSearchLoading}
+                  onClick={() => void runWalkinSearch()}
+                >
+                  {walkinSearchLoading ? "Ищем..." : "Подобрать столы"}
+                </button>
+                <button
+                  type="button"
+                  className="m-btn"
+                  onClick={() => setWalkinSearchOpen(false)}
+                >
+                  Отмена
+                </button>
+              </div>
+
+              {walkinSuggestions !== null ? (
+                walkinSuggestions.length === 0 ? (
+                  <div className="m-note">
+                    Подходящих столов сейчас нет — все занятые или слишком маленькие. Попробуй уменьшить длительность или подождать освобождения.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="m-eyebrow">Топ {walkinSuggestions.length} вариантов</div>
+                    {walkinSuggestions.map((s) => (
+                      <div
+                        key={`walkin-sugg-${s.tableId}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: "12px 14px",
+                          border: "1px solid var(--s-border)",
+                          borderRadius: 10,
+                          background: "var(--s-deep)",
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--s-text)" }}>
+                            {s.tableLabel}{" "}
+                            <span style={{ fontSize: 12, fontWeight: 400, color: "var(--s-muted)" }}>
+                              · {s.roomName} · {s.capacity} мест
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--s-muted)", marginTop: 4 }}>
+                            {s.nextBookingTime
+                              ? <>Свободен до <b>{s.nextBookingTime}</b>{s.availableMinutes !== null ? <> (≈{s.availableMinutes} мин)</> : null}</>
+                              : <>Свободен без ограничений по бронированию</>}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="m-btn m-btn-positive"
+                          disabled={!!walkinSeatingId}
+                          onClick={() => void seatWalkinSuggestion(s)}
+                        >
+                          {walkinSeatingId === s.tableId ? "Сажаем…" : "Посадить"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {walkinDialog ? (
         <div className="m-backdrop m-backdrop-walkin" role="presentation" onClick={() => setWalkinDialog(null)}>
           <div className="m-dialog" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -2318,7 +2606,14 @@ export function ManagerDashboard({
                   </div>
                   <div className="m-field">
                     <label className="m-field-label">Телефон</label>
-                    <input className="m-input" name="phone" placeholder="+998..." required />
+                    <input
+                      className="m-input"
+                      name="phone"
+                      placeholder="+998..."
+                      required
+                      value={phoneInputValue}
+                      onChange={(e) => setPhoneInputValue(e.target.value)}
+                    />
                   </div>
                   <div className="m-field">
                     <label className="m-field-label">Telegram</label>
@@ -2329,6 +2624,61 @@ export function ManagerDashboard({
                     <input className="m-input" defaultValue={2} min={1} name="guests" type="number" />
                   </div>
                 </div>
+
+                {/* ── Карточка гостя из истории ─────────────────────────── */}
+                {guestProfile ? (
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      padding: "14px 16px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(59, 130, 246, 0.35)",
+                      background: "rgba(59, 130, 246, 0.08)",
+                      color: "var(--s-text)",
+                      fontSize: 13,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <strong style={{ fontSize: 14 }}>
+                        {guestProfile.primaryName || "Постоянный гость"}
+                      </strong>
+                      {guestProfile.flags.includes("vip") ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 999, background: "#fef3c7", color: "#92400e", fontSize: 11, fontWeight: 600 }}>VIP</span>
+                      ) : null}
+                      {guestProfile.flags.includes("regular") ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 999, background: "#dcfce7", color: "#166534", fontSize: 11, fontWeight: 600 }}>Постоянник</span>
+                      ) : null}
+                      {guestProfile.flags.includes("first-visit") ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 999, background: "#e0e7ff", color: "#3730a3", fontSize: 11, fontWeight: 600 }}>Первый визит</span>
+                      ) : null}
+                      {guestProfile.flags.includes("risk") ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 999, background: "#fee2e2", color: "#b91c1c", fontSize: 11, fontWeight: 600 }}>⚠ Риск no-show</span>
+                      ) : null}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--s-muted)", lineHeight: 1.6 }}>
+                      Был у нас <b>{guestProfile.totalBookings}</b> {guestProfile.totalBookings === 1 ? "раз" : "раз(а)"}
+                      {guestProfile.confirmedBookings > 0 ? <>, состоялось — <b>{guestProfile.confirmedBookings}</b></> : null}
+                      {guestProfile.noShowCount > 0 ? <>, не пришёл — <b style={{ color: "#b91c1c" }}>{guestProfile.noShowCount}</b></> : null}
+                      {guestProfile.lastVisitLabel ? <>. Последний визит: <b>{guestProfile.lastVisitLabel}</b></> : null}.
+                      {guestProfile.favoritePlaceLabel ? <> Любимое место: <b>{guestProfile.favoritePlaceLabel}</b>{guestProfile.favoriteVenueName && guestProfile.favoriteVenueName !== selectedVenue?.name ? <> ({guestProfile.favoriteVenueName})</> : null}.</> : null}
+                      {guestProfile.averageGuests ? <> Средняя компания: <b>{guestProfile.averageGuests}</b> чел.</> : null}
+                    </div>
+                    {guestProfile.primaryName ? (
+                      <div>
+                        <button type="button" className="m-btn" onClick={applyGuestNameToForm} style={{ fontSize: 12 }}>
+                          ↳ Использовать «{guestProfile.primaryName}»
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : guestLookupLoading && phoneInputValue.replace(/\D+/g, "").length >= 7 ? (
+                  <div style={{ marginBottom: 16, fontSize: 12, color: "var(--s-muted)" }}>
+                    Ищем гостя в истории…
+                  </div>
+                ) : null}
 
                 <div className="m-form-grid">
                   <div className="m-field">
@@ -2379,13 +2729,43 @@ export function ManagerDashboard({
                   <textarea className="m-textarea" name="note" placeholder="Доп. заметка менеджера" />
                 </div>
 
+                {/* ── Conflict warning ─────────────────────────────────── */}
+                {manualConflict && manualStatus !== "WAITLIST" ? (
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      padding: "12px 14px",
+                      borderRadius: 10,
+                      border: "1px solid #fca5a5",
+                      background: "rgba(239, 68, 68, 0.08)",
+                      color: "#b91c1c",
+                      fontSize: 13,
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 16, lineHeight: "20px" }}>⚠</span>
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 2 }}>Конфликт по времени</div>
+                      <div>
+                        Стол <strong>{manualConflict.placeLabel}</strong> уже занят бронью
+                        {manualConflict.customerName ? <> на <strong>{manualConflict.customerName}</strong></> : null}
+                        {" "}({manualConflict.windowLabel}). Выберите другое время или другой стол —
+                        либо переведите клиента в лист ожидания.
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="m-detail-actions">
                   <button
                     className="m-btn m-btn-gold"
                     disabled={
                       isPending ||
                       (manualStatus !== "WAITLIST" && !manualTime && !nextAvailableManualSlot) ||
-                      (manualStatus === "WAITLIST" && !!manualTime && manualSlots.find((s) => s.time === manualTime)?.status !== "unavailable")
+                      (manualStatus === "WAITLIST" && !!manualTime && manualSlots.find((s) => s.time === manualTime)?.status !== "unavailable") ||
+                      (manualStatus !== "WAITLIST" && !!manualConflict)
                     }
                     type="submit"
                   >
@@ -2676,6 +3056,17 @@ export function ManagerDashboard({
                                   <div className="m-eyebrow">Карта заведения</div>
                                   <strong style={{ fontSize: 13, color: "var(--s-text)" }}>В каждом зале своя расстановка столов и зон</strong>
                                 </div>
+                                <button
+                                  type="button"
+                                  className="m-btn m-btn-gold"
+                                  onClick={() => {
+                                    setWalkinSearchOpen(true);
+                                    setWalkinSuggestions(null);
+                                  }}
+                                  style={{ fontSize: 13 }}
+                                >
+                                  👋 Walk-in: гость с улицы
+                                </button>
                               </div>
                               <FloorPlanViewer
                                 allowOccupiedTableSelection
@@ -3163,7 +3554,14 @@ export function ManagerDashboard({
                   </div>
                   <div className="m-field">
                     <label className="m-field-label">Телефон</label>
-                    <input className="m-input" name="phone" placeholder="+998..." required />
+                    <input
+                      className="m-input"
+                      name="phone"
+                      placeholder="+998..."
+                      required
+                      value={phoneInputValue}
+                      onChange={(e) => setPhoneInputValue(e.target.value)}
+                    />
                   </div>
                   <div className="m-field">
                     <label className="m-field-label">Telegram</label>
@@ -3174,6 +3572,61 @@ export function ManagerDashboard({
                     <input className="m-input" defaultValue={2} min={1} name="guests" type="number" />
                   </div>
                 </div>
+
+                {/* ── Карточка гостя из истории ─────────────────────────── */}
+                {guestProfile ? (
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      padding: "14px 16px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(59, 130, 246, 0.35)",
+                      background: "rgba(59, 130, 246, 0.08)",
+                      color: "var(--s-text)",
+                      fontSize: 13,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <strong style={{ fontSize: 14 }}>
+                        {guestProfile.primaryName || "Постоянный гость"}
+                      </strong>
+                      {guestProfile.flags.includes("vip") ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 999, background: "#fef3c7", color: "#92400e", fontSize: 11, fontWeight: 600 }}>VIP</span>
+                      ) : null}
+                      {guestProfile.flags.includes("regular") ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 999, background: "#dcfce7", color: "#166534", fontSize: 11, fontWeight: 600 }}>Постоянник</span>
+                      ) : null}
+                      {guestProfile.flags.includes("first-visit") ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 999, background: "#e0e7ff", color: "#3730a3", fontSize: 11, fontWeight: 600 }}>Первый визит</span>
+                      ) : null}
+                      {guestProfile.flags.includes("risk") ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 999, background: "#fee2e2", color: "#b91c1c", fontSize: 11, fontWeight: 600 }}>⚠ Риск no-show</span>
+                      ) : null}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--s-muted)", lineHeight: 1.6 }}>
+                      Был у нас <b>{guestProfile.totalBookings}</b> {guestProfile.totalBookings === 1 ? "раз" : "раз(а)"}
+                      {guestProfile.confirmedBookings > 0 ? <>, состоялось — <b>{guestProfile.confirmedBookings}</b></> : null}
+                      {guestProfile.noShowCount > 0 ? <>, не пришёл — <b style={{ color: "#b91c1c" }}>{guestProfile.noShowCount}</b></> : null}
+                      {guestProfile.lastVisitLabel ? <>. Последний визит: <b>{guestProfile.lastVisitLabel}</b></> : null}.
+                      {guestProfile.favoritePlaceLabel ? <> Любимое место: <b>{guestProfile.favoritePlaceLabel}</b>{guestProfile.favoriteVenueName && guestProfile.favoriteVenueName !== selectedVenue?.name ? <> ({guestProfile.favoriteVenueName})</> : null}.</> : null}
+                      {guestProfile.averageGuests ? <> Средняя компания: <b>{guestProfile.averageGuests}</b> чел.</> : null}
+                    </div>
+                    {guestProfile.primaryName ? (
+                      <div>
+                        <button type="button" className="m-btn" onClick={applyGuestNameToForm} style={{ fontSize: 12 }}>
+                          ↳ Использовать «{guestProfile.primaryName}»
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : guestLookupLoading && phoneInputValue.replace(/\D+/g, "").length >= 7 ? (
+                  <div style={{ marginBottom: 16, fontSize: 12, color: "var(--s-muted)" }}>
+                    Ищем гостя в истории…
+                  </div>
+                ) : null}
 
                 {/* Date/time/status */}
                 <div className="m-form-grid">
